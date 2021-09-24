@@ -124,6 +124,8 @@ read_data <- function(x) {
       condition = condition,
       colors = colors,
       genes = genes,
+      clusters = as.character(Idents(seurat_data)),
+      cellTypes = dataConds,
 
   #Parser additions
       plot_df = df_plot,
@@ -161,6 +163,8 @@ server <- function(input, output, session) {
   #Update the gene list on change
   observeEvent({ organoid() }, {
     updateSelectizeInput(session, 'selected_gene', choices = organoid()$genes, server = TRUE)
+    updateSelectizeInput(session, 'selected_cluster', choices = organoid()$clusters, server = TRUE)
+    updateSelectizeInput(session, 'selected_ctype', choices = organoid()$cellTypes, server = TRUE)
   })
 
   #Logging
