@@ -1,12 +1,12 @@
 library(Seurat)
 library(dplyr)
 library(ggplot2)
-library(plotly)
 library(plyr)
 library(dplyr)
 library(varhandle)
 library(reshape2)
-
+library(patchwork)
+library(viridis)
 
 ##Helper calculation and data functions
 
@@ -23,26 +23,30 @@ MaxMutate <- function(x) {
   return(x / max(x))
 }
 
-IsSeurat2 <- function() {
-  return (packageVersion("Seurat") < 3)
-}
-
 get_shared_genes <- function(inputGeneList1, inputGeneList2, topN) {
   gene_list1 = dplyr::distinct(as.data.frame(inputGeneList1) %>% mutate_if(is.factor, as.character))
   gene_list2 = dplyr::distinct(as.data.frame(inputGeneList2) %>% mutate_if(is.factor, as.character))
   colnames(gene_list1) = c("gene")
   colnames(gene_list2) = c("gene")
-  shared <- dplyr::semi_join(as.data.frame(gene_list1), as.data.frame(gene_list2), by = "gene")
-  return(dplyr::top_n(shared, topN)$gene)
+  gene_list1$geneMod <- toupper(sub("-ENS.*$", "", gene_list1$gene))
+  gene_list2$geneMod <- toupper(sub("-ENS.*$", "", gene_list2$gene))
+  sharedPoss <- na.omit(match(gene_list1$geneMod, gene_list2$geneMod))
+  if(length(sharedPoss) > 0){
+    geneList <- head(gene_list2$gene[sharedPoss], topN)
+    cat("Found genes: ", geneList)
+    return(geneList)
+  } else {
+    cat("No genes found\n")
+    print(head(gene_list1))
+    print(head(gene_list2))
+    return(NULL)
+  }
 }
 
 FetchGenes <- function(
   object,
   vars.all = NULL
 ) {
-  if (IsSeurat2()) {
-    return(FetchData(object, vars.all))
-  }
   cells.use <- colnames(object)
   gene.check <- vars.all %in% rownames(GetAssayData(object))
   if (!all(gene.check)) {
@@ -59,137 +63,98 @@ FetchGenes <- function(
 
 ##Helper plotting functions
 
-GetClusterPlot <- function(inputDataList, inputDataIndex, inputWidth, inputHeight) {
+GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts) {
 
   inputDataObj = inputDataList[[inputDataIndex]]
-
-  x_ax <- list(
-    title = "",
-    zeroline = FALSE,
-    showline = FALSE,
-    showticklabels = FALSE,
-    showgrid = FALSE,
-    scaleanchor = 'y',
-    scaleratio = inputDataObj$x_scale_ratio_clusterPlot
-  )
-
-  y_ax <- list(
-    title = "",
-    zeroline = FALSE,
-    showline = FALSE,
-    showticklabels = FALSE,
-    showgrid = FALSE
-  #scaleratio = inputDataObj$y_scale_ratio_clusterPlot
-  )
-
-  #p <- plot_ly(inputDataObj$plot_df,source="plot_cluster",hoverinfo="skip",x=~dim1,y=~dim2,type="scattergl",width=300,mode="markers",marker=list(color=~colorVec,size=2)) %>%
-  #  layout(
-  #    #autosize = TRUE,
-  #    title=inputDataObj$name,
-  #    xaxis = x_ax,
-  #    yaxis= y_ax
-  #  ) %>% config(displayModeBar = F)
-
-  p <- plot_ly(inputDataObj$plot_df, source = "plot_cluster", width = inputWidth, height = inputHeight) %>%
-    add_trace(
-      x = ~dim1,
-      y = ~dim2,
-      hoverinfo = "text",
-      type = "scattergl",
-      mode = "markers",
-      text = ~cluster_description,
-      key = ~cluster,
-      marker = list(size = 2 * scaleRatio(inputWidth) * inputDataObj$pt_size, color = ~colorVec),
-      opacity = 0.5
-    ) %>%
-    #add_trace(type="scatter",mode="text",textposition="center",x=organoid$title_coords$x_center, y=organoid$title_coords$y_center, text=organoid$title_coords$cluster,font=list(face="bold")) %>%
-    add_annotations(
-      x = inputDataObj$title_coords$x_center,
-      y = inputDataObj$title_coords$y_center,
-      text = sprintf("<b>%s</b>", inputDataObj$title_coords$cluster),
-      showarrow = FALSE,
-      font = list(size = 11 * scaleRatio(inputWidth) * inputDataObj$font_scale)
-    ) %>%
-    layout(
-      autosize = TRUE,
-      title = inputDataObj$name,
-      xaxis = x_ax,
-      yaxis = y_ax
-    ) %>%
-    hide_colorbar() %>%
-    config(displayModeBar = F)
-
-  return(p)
+  DimPlot(inputDataObj$seurat_data, cols=inputDataObj$colors, reduction=inputDataObj$embedding,
+          pt.size=2, split.by=if(inputOpts$splitByCondition){inputDataObj$condition} else {NULL})
 }
 
-GetPlotData <- function(inputDataObj, inputGene, quantile=0.99) {
-  data <- as.numeric(FetchGenes(inputDataObj$seurat_data, inputGene))
-  cutoff <- quantile(x = data[data > 0], probs = quantile) 
-  data[data > cutoff] <- cutoff
-  single_gene <- mutate(inputDataObj$plot_df[, 1:2], gene = data) %>% arrange(gene)
-  colnames(single_gene) = c("dim1", "dim2", "gene")
-  return(single_gene)
+GetPlotData <- function(inputDataObj, inputGene) {
+  print(inputGene)
+  if(length(inputGene) == 1){
+    single_gene <- mutate(inputDataObj$plot_df[, 1:2], 
+                          gene = as.numeric(FetchGenes(inputDataObj$seurat_data, inputGene))) %>% arrange(gene)
+    colnames(single_gene) = c("dim1", "dim2", "gene")
+    return(single_gene)
+  } else {
+    return(NULL)
+  }
 }
 
-GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGene, inputWidth, inputHeight) {
+GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
 
-  inputDataObj = inputDataList[[inputDataIndex]]
+    inputDataObj <- inputDataList[[inputDataIndex]]
+    seuratObj <- inputDataObj$seurat_data
 
-  #On initialization, check if the inputGene is not defined
-  if (inputGene == "") {
+    #On initialization, check if the inputGene is not defined
+    if ((length(inputGeneList) == 0) || (inputGeneList == "")) {
+      return(NULL)
+    }
+    ## Fetch expression data
+    GetAssayData(seuratObj, slot="counts", assay="RNA")[inputGeneList,, drop=FALSE] %>%
+        data.frame() %>%
+        rownames_to_column("feature") %>%
+        as_tibble() %>%
+        pivot_longer(cols = -1, names_to="cell", values_to="expr") -> feature.tbl;
+    colnames(feature.tbl) <- sub("-ENS.*$", "", colnames(feature.tbl));
+    ## Fetch dimensional reduction
+    Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
+        data.frame() %>%
+        rownames_to_column("cell") %>%
+        as_tibble() %>%
+        mutate(cell=gsub("-", ".", cell)) -> cell.tbl;
+    ## identify reduction names
+    cxName <- colnames(cell.tbl)[2];
+    cyName <- colnames(cell.tbl)[3];
+    ## create cell groups
+    cell.tbl$group <- as.character(unlist(
+           seuratObj[[if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"}]]
+         ));
+    ## merge expression + cell data
+    cell.tbl %>%
+        right_join(feature.tbl, by="cell") %>%
+        arrange(expr) -> merged.tbl
+    ## plot object
+    merged.tbl %>% ggplot() +
+        aes(x=!!sym(cxName), y=!!sym(cyName), col=expr) +
+        geom_point() +
+        facet_wrap(~ group + feature) +
+        theme_bw() +
+        theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+    ## update dot colours
+    if(inputOpts$colour_scale == "Viridis"){
+        res <- res + scale_colour_viridis();
+    } else {
+        res <- res + scale_colour_gradient(low = "lightgrey", high="#e31837");
+    }
+    return(res);
+}
+
+GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
+
+  inputDataObj <- inputDataList[[inputDataIndex]]
+
+  if (length(inputGeneList) == 0) {
     return(NULL)
   }
   else {
-    x_ax <- list(
-      title = "",
-      zeroline = FALSE,
-      showline = FALSE,
-      showticklabels = FALSE,
-      showgrid = FALSE,
-      scaleanchor = 'y',
-      scaleratio = inputDataObj$x_scale_ratio_clusterPlot
-    )
-
-    y_ax <- list(
-      title = "",
-      zeroline = FALSE,
-      showline = FALSE,
-      showticklabels = FALSE,
-      showgrid = FALSE
-    #scaleratio = inputDataObj$y_scale_ratio_clusterPlot
-    )
-
-    single_gene <- GetPlotData(inputDataObj, inputGene)
-    p <- plot_ly(
-      single_gene, 
-      source = "plot_expression", 
-      x = ~dim1, 
-      y = ~dim2, 
-      type = "scattergl", 
-      width = inputWidth, 
-      height = inputHeight, 
-      mode = "markers", 
-      text = ~gene,
-      color = ~gene, 
-      marker = list(size = 2 * scaleRatio(inputWidth) * inputDataObj$pt_size), 
-      hoverinfo = "text", 
-      name = inputGene, 
-      colors = c("grey90", "red")
-    ) %>%
-    layout(
-    #autosize = TRUE,
-      title = inputGene,
-      xaxis = x_ax,
-      yaxis = y_ax
-    ) %>% 
-    hide_colorbar() %>% 
-    config(displayModeBar = F)
-
-    return(p)
+    res <- DotPlot(inputDataObj$seurat_data, features=inputGeneList,
+            dot.min=0.0001, scale.by="size", scale=TRUE,
+            col.min=0, col.max=1,
+            group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"},
+            cols = c("lightgrey", "#e31837")) +
+      ylab("Cluster") +
+      scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
+      theme(axis.text.x=element_text(angle=45, hjust=1))
+    if(inputOpts$colour_scale == "Viridis"){
+      suppressWarnings(res <- res + scale_color_viridis_c())
+    }
+    return(res)
   }
 }
 
-GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputWidth, inputHeight) {
+GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
 
   inputDataObj = inputDataList[[inputDataIndex]]
 
@@ -197,75 +162,14 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputWidth,
     return(NULL)
   }
   else {
-    #Get the gene expression values and scale them so the max value for each gene is 1
-    gene_exp = FetchGenes(inputDataObj$seurat_data, inputGeneList)
-    #Combine the cluster assignments with the gene expression data
-    multiple_genes <- as.data.frame(cbind(cluster = as.character(inputDataObj$plot_df$cluster), as.data.frame(gene_exp)))
-
-    #Calculate the average expression per gene per cluster
-    avgs <- multiple_genes %>% group_by(cluster) %>% dplyr::summarise_all(funs(mean))
-    #Normalize so max is 1, melt the dataframe so we can plot it, and max sure the clusters are factors for proper plotting
-    avgs <- melt(cbind(cluster = avgs$cluster, avgs %>% select(-cluster)), id.vars = c("cluster"))
-    colnames(avgs) = c("cluster", "gene", "average_expression")
-    avgs <- mutate(avgs, average_expression_relative = MaxMutate(average_expression))
-    #avgs$cluster = as.factor(avgs$cluster)
-
-    #Calculate the percent of cells that each gene was detected in per cluster
-    p_above <- melt(multiple_genes %>% group_by(cluster) %>% dplyr::summarise_all(funs(PercentAbove)), id.vars = c("cluster"))
-
-    #Combine the calculations
-    combined = cbind(avgs, percent_above = 100 * p_above[, 3])
-    combined = cbind(combined, percent_above_scaled = 100 * p_above[, 3] * scaleRatio(inputWidth))
-    #Reverse the row order so it plots correctly - from https://stat.ethz.ch/pipermail/r-help/2008-September/175012.html
-    rev_combined <- combined[rev(rownames(combined)),]
-    #Add the hover text
-    rev_combined <- mutate(rev_combined, hover_text = sprintf("Cluster: %s\nAvg. Expression: %0.3f\nPercent Cells: %0.2f%%", cluster, average_expression, percent_above))
-
-    y_ax <- list(
-      title = "",
-      zeroline = FALSE,
-      showline = TRUE,
-      showticklabels = TRUE,
-      showgrid = FALSE,
-      categoryorder = "trace"
-    )
-
-    x_ax <- list(
-      title = "",
-      zeroline = FALSE,
-      showline = TRUE,
-      showticklabels = TRUE,
-      showgrid = FALSE,
-      categoryorder = "array",
-      categoryarray = inputDataObj$category_order
-    )
-
-    t <- list(
-      size = 12 * scaleRatio(inputWidth))
-
-    #colorbar=list(title='Avg. expr.')
-    p <- plot_ly(
-      rev_combined, 
-      source = "plot_dot", 
-      x = ~cluster, 
-      y = ~gene, 
-      type = "scattergl", 
-      mode = "markers", 
-      width = inputWidth, 
-      height = inputHeight, 
-      text = ~hover_text, 
-      hoverinfo = "text", 
-      marker = list(symbol = "circle", size = rev_combined$percent_above_scaled, sizemode = "area", color = ~average_expression_relative)
-    ) %>%
-    layout(
-      title = 'Dot Plot',
-  #autosize = TRUE,
-      showlegend = FALSE,
-      yaxis = y_ax,
-      xaxis = x_ax,
-      font = t
-    ) #%>% config(displayModeBar = F)
-
-    return(p)
+    print(table(unlist(inputDataObj$seurat_data[["X__clusterCondREV"]])))
+    res <- DoHeatmap(inputDataObj$seurat_data, features=inputGeneList,
+            slot="counts", assay="RNA", raster=FALSE,
+            group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"}) +
+      scale_y_discrete(labels=function(x){sub("-ENSM.*", "", x)})
+    if(inputOpts$colour_scale == "Viridis"){
+      suppressWarnings(res <- res + scale_fill_viridis())
+    }
+    return(res)
   }
 }

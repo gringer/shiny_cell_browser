@@ -11,6 +11,7 @@ WORKDIR /app
 
 VOLUME /app/data
 
+RUN R -e 'install.packages(c("SeuratObject"))'
 RUN R -e 'install.packages(c("Seurat"))'
 RUN R -e 'install.packages(c("rjson"))'
 RUN R -e 'install.packages(c("shiny"))'
@@ -23,9 +24,10 @@ RUN R -e 'install.packages(c("varhandle"))'
 RUN R -e 'install.packages(c("plyr"))'
 RUN R -e 'install.packages(c("shinyjs"))'
 RUN R -e 'install.packages(c("rlist"))'
-RUN R -e 'devtools::install_github("ropensci/plotly")'
 RUN R -e 'install.packages(c("shinythemes"))'
+RUN R -e 'install.packages(c("viridis"))'
 RUN R -e 'install.packages(c("logging"))'
+RUN R -e 'install.packages(c("patchwork"))'
 
 ADD . /app/
 
