@@ -108,9 +108,19 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     cxName <- colnames(cell.tbl)[2];
     cyName <- colnames(cell.tbl)[3];
     ## create cell groups
-    cell.tbl$group <- as.character(unlist(
-           seuratObj[[if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"}]]
-         ));
+    if((length(inputOpts$selected_ctype) > 1) | (length(inputOpts$selected_cluster) > 1)){
+      cell.tbl$group <- as.character(unlist(
+        seuratObj[[if(length(inputOpts$selected_ctype) > 1){
+          if(length(inputOpts$selected_cluster) > 1){
+            "X__clusterCondREV"
+          } else {"X__cond"}
+        } else if(length(inputOpts$selected_cluster) > 1){
+          "X__cluster"
+        }]]
+      ));
+    } else {
+      cell.tbl$group = 1;
+    }
     ## filter cluster / cell type at cell level
     cell.tbl$includeFilter <- TRUE;
     if(length(inputOpts$selected_cluster) > 0){
@@ -129,11 +139,15 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
         arrange(expr) -> merged.tbl
     ## plot object
     merged.tbl %>% ggplot() +
-        aes(x=!!sym(cxName), y=!!sym(cyName), col=expr) +
-        geom_point() +
-        facet_wrap(~ group + feature) +
-        theme_bw() +
-        theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+      aes(x=!!sym(cxName), y=!!sym(cyName), col=expr) +
+      geom_point() +
+      theme_bw() +
+      theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+    if((length(inputOpts$selected_cluster) > 1) | (length(inputOpts$selected_ctype) > 1)){
+      res <- res + facet_wrap(~ group + feature);
+    } else if(length(inputGeneList) > 1){
+      res <- res + facet_wrap(~ feature);
+    }
     ## update dot colours
     if(inputOpts$colour_scale == "Viridis"){
         res <- res + scale_colour_viridis();
