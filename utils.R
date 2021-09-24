@@ -107,6 +107,8 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     ## identify reduction names
     cxName <- colnames(cell.tbl)[2];
     cyName <- colnames(cell.tbl)[3];
+    rangeX <- range(cell.tbl[,2]);
+    rangeY <- range(cell.tbl[,3]);
     ## create cell groups
     if((length(inputOpts$selected_ctype) > 1) | (length(inputOpts$selected_cluster) > 1)){
       cell.tbl$group <- as.character(unlist(
@@ -140,6 +142,8 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     ## plot object
     merged.tbl %>% ggplot() +
       aes(x=!!sym(cxName), y=!!sym(cyName), col=expr) +
+      xlim(rangeX[1], rangeX[2]) +
+      ylim(rangeY[1], rangeY[2]) +
       geom_point() +
       theme_bw() +
       theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
