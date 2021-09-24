@@ -164,42 +164,67 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
 GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
 
   inputDataObj <- inputDataList[[inputDataIndex]]
+  seuratObj <- inputDataObj$seurat_data
 
   if (length(inputGeneList) == 0) {
     return(NULL)
   }
-  else {
-    res <- DotPlot(inputDataObj$seurat_data, features=inputGeneList,
-            dot.min=0.0001, scale.by="size", scale=TRUE,
-            col.min=0, col.max=1,
-            group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"},
-            cols = c("lightgrey", "#e31837")) +
-      ylab("Cluster") +
-      scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
-      theme(axis.text.x=element_text(angle=45, hjust=1))
-    if(inputOpts$colour_scale == "Viridis"){
-      suppressWarnings(res <- res + scale_color_viridis_c())
-    }
-    return(res)
+  
+  chooseCells <- TRUE;
+  if(length(inputOpts$selected_cluster) > 0){
+    chooseCells <- as.character(unlist(seuratObj[["X__cluster"]])) %in% 
+      inputOpts$selected_cluster;
   }
+  if(length(inputOpts$selected_ctype) > 0){
+    chooseCells <- chooseCells & 
+      as.character(unlist(seuratObj[["X__cond"]])) %in% 
+      inputOpts$selected_ctype;
+  }
+  if(!all(chooseCells)){
+    seuratObj <- subset(seuratObj, cells = which(chooseCells));
+  }
+  res <- DotPlot(seuratObj, features=inputGeneList,
+                 dot.min=0.0001, scale.by="size", scale=TRUE,
+                 col.min=0, col.max=1,
+                 group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"},
+                 cols = c("lightgrey", "#e31837")) +
+    ylab("Cluster") +
+    scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
+    theme(axis.text.x=element_text(angle=45, hjust=1))
+  if(inputOpts$colour_scale == "Viridis"){
+    suppressWarnings(res <- res + scale_color_viridis_c())
+  }
+  return(res)
 }
 
 GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
 
-  inputDataObj = inputDataList[[inputDataIndex]]
-
+  inputDataObj <- inputDataList[[inputDataIndex]]
+  seuratObj <- inputDataObj$seurat_data
+  
   if (length(inputGeneList) == 0) {
     return(NULL)
   }
-  else {
-    print(table(unlist(inputDataObj$seurat_data[["X__clusterCondREV"]])))
-    res <- DoHeatmap(inputDataObj$seurat_data, features=inputGeneList,
-            slot="counts", assay="RNA", raster=FALSE,
-            group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"}) +
-      scale_y_discrete(labels=function(x){sub("-ENSM.*", "", x)})
-    if(inputOpts$colour_scale == "Viridis"){
-      suppressWarnings(res <- res + scale_fill_viridis())
-    }
-    return(res)
+  
+  chooseCells <- TRUE;
+  if(length(inputOpts$selected_cluster) > 0){
+    chooseCells <- as.character(unlist(seuratObj[["X__cluster"]])) %in% 
+      inputOpts$selected_cluster;
   }
+  if(length(inputOpts$selected_ctype) > 0){
+    chooseCells <- chooseCells & 
+      as.character(unlist(seuratObj[["X__cond"]])) %in% 
+      inputOpts$selected_ctype;
+  }
+  if(!all(chooseCells)){
+    seuratObj <- subset(seuratObj, cells = which(chooseCells));
+  }
+  res <- DoHeatmap(seuratObj, features=inputGeneList,
+                   slot="counts", assay="RNA", raster=FALSE,
+                   group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"}) +
+    scale_y_discrete(labels=function(x){sub("-ENSM.*", "", x)})
+  if(inputOpts$colour_scale == "Viridis"){
+    suppressWarnings(res <- res + scale_fill_viridis())
+  }
+  return(res)
 }

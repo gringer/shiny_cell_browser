@@ -104,9 +104,12 @@ read_data <- function(x) {
   plot_tab <- differential_expression # %>% select(-c("id")) #%>% select(-c("id","cluster","is_max_pct","p_val","myAUC","power"))
 
   dataConds <- as.character(unlist(seurat_data[[condition]]))
+  
+  print(unique(dataConds));
+  cellTypes <- unique(unlist(seurat_data[[x$cluster]]));
   clusterConds <- paste(Idents(seurat_data), dataConds, sep="_")
-  seurat_data[["X__cluster"]] = factor(Idents(seurat_data))
-  seurat_data[["X__cond"]] = factor(dataConds)
+  seurat_data[["X__cluster"]] = as.character(Idents(seurat_data))
+  seurat_data[["X__cond"]] = dataConds
   seurat_data[["X__clusterREV"]] = factor(Idents(seurat_data), 
                                           levels=sort(unique(as.character(Idents(seurat_data))), 
                                                       decreasing = TRUE))
@@ -164,9 +167,9 @@ server <- function(input, output, session) {
   #Update the gene list on change
   observeEvent({ organoid() }, {
     updateSelectizeInput(session, 'selected_gene', choices = organoid()$genes, server = TRUE)
-    updateSelectizeInput(session, 'selected_cluster', choices = sort(organoid()$clusters),
+    updateSelectizeInput(session, 'selected_cluster', choices = sort(unique(organoid()$clusters)),
                          server = TRUE)
-    updateSelectizeInput(session, 'selected_ctype', choices = sort(organoid()$cellTypes),
+    updateSelectizeInput(session, 'selected_ctype', choices = sort(unique(organoid()$cellTypes)),
                          server = TRUE)
   })
 
