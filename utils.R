@@ -111,9 +111,21 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     cell.tbl$group <- as.character(unlist(
            seuratObj[[if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"}]]
          ));
+    ## filter cluster / cell type at cell level
+    cell.tbl$includeFilter <- TRUE;
+    if(length(inputOpts$selected_cluster) > 0){
+      cell.tbl$includeFilter <- as.character(unlist(seuratObj[["X__cluster"]])) %in% 
+                 inputOpts$selected_cluster;
+    }
+    if(length(inputOpts$selected_ctype) > 0){
+      cell.tbl$includeFilter <- cell.tbl$includeFilter & 
+        as.character(unlist(seuratObj[["X__cond"]])) %in% 
+                 inputOpts$selected_ctype;
+    }
+    cell.tbl <- cell.tbl %>% filter(includeFilter);
     ## merge expression + cell data
     cell.tbl %>%
-        right_join(feature.tbl, by="cell") %>%
+        left_join(feature.tbl, by="cell") %>%
         arrange(expr) -> merged.tbl
     ## plot object
     merged.tbl %>% ggplot() +
