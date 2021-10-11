@@ -10,7 +10,7 @@ Interactive visualization of single cell RNAseq datasets.
 ## Setting up and launch the App
   
   - Download the App, `git clone https://github.com/yueqiw/shiny_cell_browser.git`.
-  - The master branch currently supports Seurat2. For Seurat3 datasets, check out the [seurat3](https://github.com/yueqiw/shiny_cell_browser/tree/seurat3) branch.
+  - The main branch currently supports Seurat3.
   - Install dependencies as listed [below](#dependencies).
   - Prepare data
     - Store Seurat data objects as `.rds` files.
