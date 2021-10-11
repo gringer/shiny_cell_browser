@@ -65,7 +65,7 @@ read_data <- function(x) {
     colors <- turbo(n_distinct(seurat_data@active.ident))
   }
   condition <- x$condition
-  genes <- sort(rownames(GetAssayData(seurat_data)))
+  genes <- sort(rownames(GetAssayData(seurat_data, slot="counts", assay="RNA")))
   
   dimEmbedding <- x$embedding;
   if(is.null(dimEmbedding)){
@@ -100,9 +100,17 @@ read_data <- function(x) {
   df_plot$cluster_description = as.character(mapvalues(df_plot$cluster, from = source_abbv, to = dest_desc))
 
   #Differential expression data
-  differential_expression = read.csv(file = x$diff_ex_file, header = TRUE, sep = ",")
-  plot_tab <- differential_expression # %>% select(-c("id")) #%>% select(-c("id","cluster","is_max_pct","p_val","myAUC","power"))
-
+  if(!is.null(x$diff_ex_file)){
+    DE_condition <- read.csv(file = x$diff_ex_file, header = TRUE, sep = ",")
+  } else {
+    DE_condition <- NULL;
+  }
+  if(!is.null(x$diff_ex_cluster_file)){
+    DE_cluster <- read.csv(file = x$diff_ex_cluster_file, header = TRUE, sep = ",")
+  } else {
+    DE_cluster <- NULL;
+  }
+  
   dataConds <- as.character(unlist(seurat_data[[condition]]))
   
   print(unique(dataConds));
@@ -130,13 +138,14 @@ read_data <- function(x) {
       genes = genes,
       clusters = as.character(Idents(seurat_data)),
       cellTypes = dataConds,
-
-  #Parser additions
+      
+      #Parser additions
       plot_df = df_plot,
       x_scale_ratio_clusterPlot = xScaleRatio_clusterPlot,
       y_scale_ratio_clusterPlot = yScaleRatio_clusterPlot,
       title_coords = coords_title,
-      diff_eq_table = plot_tab,
+      DE_cluster_data = DE_cluster,
+      DE_condition_data = DE_condition,
       cluster_name_mapping = x$cluster_name_mapping
 
     ))
@@ -193,8 +202,8 @@ server <- function(input, output, session) {
                ignoreNULL = TRUE, ignoreInit = TRUE)
 
   #Update expression plot on table row click 
-  observeEvent({ input$cluster_gene_table_rows_selected }, {
-    rowid <- input$cluster_gene_table_rows_selected
+  observeEvent({ input$clusterDE_gene_table_rows_selected }, {
+    rowid <- input$clusterDE_gene_table_rows_selected
     gene_selected <- current_table()[rowid, 'gene']
     updateSelectizeInput(session, "selected_gene", choices = organoid()$genes, 
                          selected=gene_selected, server=TRUE)
@@ -212,20 +221,6 @@ server <- function(input, output, session) {
     return(input$winDims[2] - 125)
   })
 
-  #Generate the current table based on the current selected cluster
-  current_table <- eventReactive({
-    values$selectedCluster
-    current_dataset_index()
-  }, {
-    if (as.character(values$selectedCluster) == "") {
-      return(organoid()$diff_eq_table)
-    }
-    else {
-      subTable = filter(organoid()$diff_eq_table, cluster == values$selectedCluster)
-      return(subTable)
-    }
-  })
-
   #Monitor cluster plot for changes and update selectedCluster field
 
   #Set the selectedCluster field to nothing when the reset button is clicked
@@ -236,13 +231,6 @@ server <- function(input, output, session) {
   #Set the selectedCluster field to nothing when the the dataset is changed 
   observeEvent(eventExpr = { current_dataset_index() }, handlerExpr = {
     values$selectedCluster <- ""
-  })
-  
-  
-
-  #Update the gene table when current_table() changes
-  observeEvent({ current_table() }, {
-    dataTableProxy("cluster_gene_table", session, deferUntilFlush = TRUE) %>% replaceData(current_table(), rownames = FALSE)
   })
 
   current_gene_list <- eventReactive(c({ values$selectedGene }, { current_dataset_index() }), {
@@ -272,12 +260,20 @@ server <- function(input, output, session) {
     return(sprintf("Genes differentially expressed in %s", baseString))
   })
   
-  output$cluster_table <- DT::renderDT({
+  output$cluster_count_table <- DT::renderDT({
     cluster <- Idents(organoid()$seurat_data)
     condition <- unlist(organoid()$seurat_data[[organoid()$condition]])
     out <- as_tibble(as.matrix(table(cluster, condition))) %>%
       pivot_wider(names_from="condition", values_from="n")
     datatable(out)
+  })
+    
+  output$DE_cluster_table <- DT::renderDT({
+    datatable(organoid()$DE_cluster_data)
+  });
+
+  output$DE_condition_table <- DT::renderDT({
+    datatable(organoid()$DE_condition_data)
   });
 
   #TABLE OUTPUT
@@ -286,8 +282,8 @@ server <- function(input, output, session) {
   decimal_columns <- c('avg_logFC', 'p_val', 'p_val_adj', 'avg_diff')
   important_columns <- c('gene', 'cluster_name', 'p_val')
 
-  output$cluster_gene_table_title <- renderText({ clusterString() })
-  output$cluster_gene_table <-
+  output$clusterDE_gene_table_title <- renderText({ clusterString() })
+  output$clusterDE_gene_table <-
     DT::renderDT({
     datatable(organoid()$diff_eq_table,
                 rownames = FALSE,

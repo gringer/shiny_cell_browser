@@ -141,7 +141,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
         arrange(expr) -> merged.tbl
     ## plot object
     merged.tbl %>% ggplot() +
-      aes(x=!!sym(cxName), y=!!sym(cyName), col=expr) +
+      aes(x=!!sym(cxName), y=!!sym(cyName), col=log1p(expr)) +
       xlim(rangeX[1], rangeX[2]) +
       ylim(rangeY[1], rangeY[2]) +
       geom_point() +
@@ -182,6 +182,9 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) 
   }
   if(!all(chooseCells)){
     seuratObj <- subset(seuratObj, cells = which(chooseCells));
+    ## refactor groups to stop empties from showing
+    seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
+    seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
   res <- DotPlot(seuratObj, features=inputGeneList,
                  dot.min=0.0001, scale.by="size", scale=TRUE,
@@ -218,6 +221,9 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   }
   if(!all(chooseCells)){
     seuratObj <- subset(seuratObj, cells = which(chooseCells));
+    ## refactor groups to stop empties from showing
+    seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
+    seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
   res <- DoHeatmap(seuratObj, features=inputGeneList,
                    slot="counts", assay="RNA", raster=FALSE,

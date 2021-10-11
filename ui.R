@@ -37,7 +37,7 @@ ui <- fluidPage(
                              selectizeInput(inputId = "selected_cluster", label = "Cluster(s)", choices = NULL,
                                             multiple=TRUE,
                                             options = list(placeholder = '[All]')),
-                             selectizeInput(inputId = "selected_ctype", label = "Cell Type(s)", choices = NULL,
+                             selectizeInput(inputId = "selected_ctype", label = "Condition(s)", choices = NULL,
                                             multiple=TRUE,
                                             options = list(placeholder = '[All]')),
                              h5(strong("Figure controls")),
@@ -61,12 +61,12 @@ ui <- fluidPage(
                                                        plotOutput(outputId = "heatmap_plot", inline = TRUE)),
                                               tabPanel("Dot Plot",
                                                        plotOutput(outputId = "dot_plot", inline = TRUE)),
-                                              tabPanel("DE Table",
-                                                       textOutput('cluster_gene_table_title'),
-                                                       br(),
-                                                       DTOutput('cluster_gene_table')),
+                                              tabPanel("Condition DE",
+                                                       DTOutput('DE_condition_table')),
+                                              tabPanel("Cluster DE",
+                                                       DTOutput('DE_cluster_table')),
                                               tabPanel("Cluster Counts",
-                                                       DTOutput('cluster_table'))
+                                                       DTOutput('cluster_count_table'))
                                             )
                                    )
                           )
