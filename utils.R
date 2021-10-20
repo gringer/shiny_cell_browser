@@ -186,7 +186,8 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) 
     seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
     seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
-  res <- DotPlot(seuratObj, features=inputGeneList,
+  print(DefaultAssay(seuratObj));
+  res <- DotPlot(seuratObj, features=inputGeneList, assay = "RNA",
                  dot.min=0.0001, scale.by="size", scale=TRUE,
                  col.min=0, col.max=1,
                  group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"},

@@ -310,15 +310,18 @@ server <- function(input, output, session) {
   output$save_file <- downloadHandler(
     filename = function() {
       tabName <- gsub(" ", "_", input$tabPanel)
-      if(input$tabPanel %in% c("DE Table", "Cluster Counts")){
+      if(input$tabPanel %in% c("Cluster DE", "Condition DE", "Cluster Counts")){
         paste0(format.Date(Sys.time(), "%Y-%m-%d_%H%M%S_"), tabName, ".csv")
       } else {
         paste0(format.Date(Sys.time(), "%Y-%m-%d_%H%M%S_"), tabName, ".png")
       }
     },
     content = function(file) {
-      if(input$tabPanel == "DE Table"){
-        organoid()$diff_eq_table %>%
+      if(input$tabPanel == "Condition DE"){
+        organoid()$DE_cluster_data %>%
+          write_csv(file)
+      } else if(input$tabPanel == "Cluster DE"){
+        organoid()$DE_condition_data %>%
           write_csv(file)
       } else if(input$tabPanel == "Cluster Counts"){
         cluster <- Idents(organoid()$seurat_data)
