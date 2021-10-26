@@ -110,6 +110,10 @@ read_data <- function(x) {
   } else {
     DE_cluster <- NULL;
   }
+  meta <- NULL;
+  if(!is.null(x$meta)){
+    meta <- x$meta;
+  }
   
   dataConds <- as.character(unlist(seurat_data[[condition]]))
   
@@ -136,6 +140,7 @@ read_data <- function(x) {
       condition = condition,
       colors = colors,
       genes = genes,
+      meta = meta,
       clusters = as.character(Idents(seurat_data)),
       cellTypes = dataConds,
       
@@ -251,6 +256,33 @@ server <- function(input, output, session) {
   output$heatmap_plot <- renderPlot({
     GetHeatmapPlot(data_list, current_dataset_index(), input$selected_gene, input)
   }, width=plot_window_width, height=plot_window_height)
+  
+  ## Metadata description
+  output$metadata_text <- renderUI({
+    dataMeta <- (data_list[[current_dataset_index()]])$meta;
+    if(!is.null(dataMeta)){
+      res <- lapply(names(dataMeta), function(x){
+        val <- dataMeta[[x]];
+        print(val);
+        if(length(val) == 1){
+          if(startsWith(val, "http")){
+            val <- tags$a(href=val, val);
+          }
+          meta.def <- tags$dd(val);
+        } else {
+          meta.def <- tags$dd(tags$ul(lapply(val, function(l){
+            if(startsWith(l, "http")){
+              l <- tags$a(href=l, target="_blank", l);
+            }
+            tags$li(l);
+          })));
+        }
+        print(meta.def);
+        list(tags$dt(x), meta.def)
+      });
+      print(unlist(res, recursive = FALSE));
+    }
+  });
 
   clusterString <- eventReactive({ values$selectedCluster }, {
     baseString = "all clusters"
