@@ -117,7 +117,7 @@ read_data <- function(x) {
   
   dataConds <- as.character(unlist(seurat_data[[condition]]))
   
-  print(unique(dataConds));
+  #print(unique(dataConds));
   cellTypes <- unique(unlist(seurat_data[[x$cluster]]));
   clusterConds <- paste(Idents(seurat_data), dataConds, sep="_")
   seurat_data[["X__cluster"]] = as.character(Idents(seurat_data))
@@ -263,7 +263,6 @@ server <- function(input, output, session) {
     if(!is.null(dataMeta)){
       res <- lapply(names(dataMeta), function(x){
         val <- dataMeta[[x]];
-        print(val);
         if(length(val) == 1){
           if(startsWith(val, "http")){
             val <- tags$a(href=val, val);
@@ -277,10 +276,8 @@ server <- function(input, output, session) {
             tags$li(l);
           })));
         }
-        print(meta.def);
         list(tags$dt(x), meta.def)
       });
-      print(unlist(res, recursive = FALSE));
     }
   });
 
@@ -350,10 +347,10 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       if(input$tabPanel == "Condition DE"){
-        organoid()$DE_cluster_data %>%
+        organoid()$DE_condition_data %>%
           write_csv(file)
       } else if(input$tabPanel == "Cluster DE"){
-        organoid()$DE_condition_data %>%
+        organoid()$DE_cluster_data %>%
           write_csv(file)
       } else if(input$tabPanel == "Cluster Counts"){
         cluster <- Idents(organoid()$seurat_data)
