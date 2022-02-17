@@ -13,6 +13,7 @@ library(rlist)
 library(shinythemes)
 library(viridisLite)
 library(logging)
+library(svglite)
 source("utils.R")
 
 #Start to read in the config file.
@@ -342,7 +343,7 @@ server <- function(input, output, session) {
       if(input$tabPanel %in% c("Cluster DE", "Condition DE", "Cluster Counts")){
         paste0(format.Date(Sys.time(), "%Y-%m-%d_%H%M%S_"), tabName, ".csv")
       } else {
-        paste0(format.Date(Sys.time(), "%Y-%m-%d_%H%M%S_"), tabName, ".png")
+        paste0(format.Date(Sys.time(), "%Y-%m-%d_%H%M%S_"), tabName, ".", input$image_type)
       }
     },
     content = function(file) {
