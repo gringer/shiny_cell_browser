@@ -68,6 +68,11 @@ Example `config.json` file:
 
 ```
 
+## Troubleshooting
+
+* Cluster names must be numeric (i.e. the variable linked to "cluster" in the config file)
+* The variable linked to "cluster" should be defined in the Seurat object. The `StashIdent` function can be used to store cluster identities as a new named variable within the Seurat object.
+
 ### Dependencies
 
 Check the Dockerfile.
