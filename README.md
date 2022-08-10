@@ -23,8 +23,8 @@ Interactive visualization of single cell RNAseq datasets.
     - The dataset-level config options are listed below:
       - `name`: the dataset name.
       - `file`: the `.rds` file path.
-      - `cluster`: the name of the column containing the displayed cluster ids.
-      - `condition`: the name of the column to split cells by (should be reducible to a numeric value).
+      - `cluster`: the name of the column to split cells by (can contain text values).
+      - `condition`: the name of the column to split cells by (must be numerical values).
       - `embedding`: the type of 2D embedding (e.g. tsne or umap).
       - `diff_ex_cluster`: the name of the `@meta.data` cluster id column that corresponds to the cluster ids in the differential expression `csv` file. In most cases, this is the same as `cluster`.
       - `diff_ex_file`: the marker gene differential expression `csv` file.
