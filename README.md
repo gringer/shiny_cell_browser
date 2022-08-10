@@ -17,6 +17,21 @@ Interactive visualization of single cell RNAseq datasets.
     - Store marker gene differential expression table in `.csv` files (column names must contain `gene` and `cluster`).
     - Optionally, store cluster colors as a vector in `seurat_data@misc[[sprintf("%s_colors", cluster_name)]]`.
   - Specify the file paths and parameters by creating a `data/config.json` file. Follow the example in [`data/example_config.json`](data/example_config.json). The App will load the files on startup. 
+  - Specify the visualization config and data file paths by creating a `data/config.json` file and following the example in [`data/example_config.json`](data/example_config.json). 
+    - Multiple datasets can be configured in the same browser.
+    - The browser-level config includes the browser title and url link
+    - The dataset-level config options are listed below:
+      - `name`: the dataset name.
+      - `file`: the `.rds` file path.
+      - `cluster`: the name of the column containing the displayed cluster ids.
+      - `condition`: the name of the column to split cells by (should be reducible to a numeric value).
+      - `embedding`: the type of 2D embedding (e.g. tsne or umap).
+      - `diff_ex_cluster`: the name of the `@meta.data` cluster id column that corresponds to the cluster ids in the differential expression `csv` file. In most cases, this is the same as `cluster`.
+      - `diff_ex_file`: the marker gene differential expression `csv` file.
+      - `cluster_name_mapping` (optional): a mapping from the Seurat cluster ids to more readable cluster names.
+      - `pt_size` (optional): if set, overrides the automatically computed point size in embedding plots.
+      - `font_scale` (optional): if set, scales the font size of cluster labels by this factor.
+      - `label_coordinates` (optional): if set, the cluster labels will be placed at these coordinates rather than at the center of each cluster.
   - To launch Single Cell Browser locally, run the following code.  
   ```
   cd shiny_cell_browser
