@@ -28,6 +28,7 @@ Interactive visualization of single cell RNAseq datasets.
       - `embedding`: the type of 2D embedding (e.g. tsne or umap).
       - `diff_ex_cluster`: the name of the `@meta.data` cluster id column that corresponds to the cluster ids in the differential expression `csv` file. In most cases, this is the same as `cluster`.
       - `diff_ex_file`: the marker gene differential expression `csv` file.
+      - `diff_ex_cluster_file`: alternative differential expression `csv` file, typically used for cluster-specific differential expression.
       - `cluster_name_mapping` (optional): a mapping from the Seurat cluster ids to more readable cluster names.
       - `pt_size` (optional): if set, overrides the automatically computed point size in embedding plots.
       - `font_scale` (optional): if set, scales the font size of cluster labels by this factor.
