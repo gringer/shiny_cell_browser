@@ -7,6 +7,7 @@ library(varhandle)
 library(reshape2)
 library(patchwork)
 library(viridis)
+library(cowplot)
 
 ##Helper calculation and data functions
 
@@ -88,7 +89,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     seuratObj <- inputDataObj$seurat_data
 
     #On initialization, check if the inputGene is not defined
-    if ((length(inputGeneList) == 0) || (inputGeneList == "")) {
+    if ((length(inputGeneList) == 0) || ((length(inputGeneList) == 1) && (inputGeneList == ""))) {
       return(NULL)
     }
     ## Fetch expression data
@@ -186,19 +187,45 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) 
     seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
     seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
-  print(DefaultAssay(seuratObj));
-  res <- DotPlot(seuratObj, features=inputGeneList, assay = "RNA",
-                 dot.min=0.0001, scale.by="size", scale=TRUE,
-                 col.min=0, col.max=1,
-                 group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"},
-                 cols = c("lightgrey", "#e31837")) +
-    ylab("Cluster") +
+  ## Create table linking cells to conditions
+  tibble(cellID = colnames(seuratObj),
+         cell.identity = as.character(seuratObj@meta.data[[
+           if(inputOpts$splitByCondition){"X__clusterCondREV"}
+           else {"X__clusterREV"}]])) -> cell.type.tbl
+  ## Create group summary table for DotPlot graph
+  seuratObj[["RNA"]]@counts[inputGeneList, , drop=FALSE] %>%
+    as.data.frame() %>%
+    rownames_to_column("gene") %>%
+    as_tibble() %>%
+    pivot_longer(cols = !starts_with("gene"), names_to = "cellID", values_to = "count") %>%
+    pivot_wider(names_from = "gene", values_from = "count") %>%
+    left_join(cell.type.tbl, by="cellID") %>%
+    pivot_longer(cols = !starts_with(c("cellID", "cell.identity")), 
+                 names_to = "gene", values_to = "count") %>%
+    group_by(cell.identity, gene) %>%
+    dplyr::summarise(pctExpressed = round(100*sum(count != 0) / n(), 1),
+                     logMeanExpr = ifelse(pctExpressed == 0, 0, 
+                                          log1p(mean(count[count > 0])) / log1p(2)),
+                     .groups = "keep") -> dotplot.data
+  # Draw dotplot graph
+  dotplot.data %>%
+    ggplot() +
+    aes(x=gene, y=cell.identity, size=pctExpressed, col=logMeanExpr) +
+    geom_point() +
+    scale_size(limits=c(0,100)) +
+    scale_colour_gradient(low="lightgrey", high="#e31837") +
     scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
-    theme(axis.text.x=element_text(angle=45, hjust=1))
+    xlab("Features") +
+    ylab("Cluster") +
+    theme_cowplot() +
+    guides(size=guide_legend(title = "% Expressed"),
+           colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)),
+                                  draw.ulim = TRUE, draw.llim = TRUE)) +
+    theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
   if(inputOpts$colour_scale == "Viridis"){
-    suppressWarnings(res <- res + scale_color_viridis_c())
+    suppressWarnings(res <- res + scale_color_viridis_c());
   }
-  return(res)
+  return(res);
 }
 
 GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {

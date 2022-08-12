@@ -1,7 +1,12 @@
 library(shiny)
 library(shinyjs)
 library(DT)
+## extra packages needed to get this working
 library(shinythemes)
+library(varhandle)
+library(rlist)
+library(logging)
+library(cowplot)
 
 json_file <- rjson::fromJSON(file = './data/config.json')
 json_config <- json_file$config
