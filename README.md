@@ -9,14 +9,30 @@ Interactive visualization of single cell RNAseq datasets.
 
 ## Setting up and launch the App
   
-  - Download the App, `git clone https://github.com/yueqiw/shiny_cell_browser.git`.
-  - The main branch currently supports Seurat3.
+  - Download the App, `git clone https://github.com/gringer/shiny_cell_browser.git`.
+  - The main branch currently supports Seurat v3 and Seurat v4 (not v2).
   - Install dependencies as listed [below](#dependencies).
   - Prepare data
     - Store Seurat data objects as `.rds` files.
     - Store marker gene differential expression table in `.csv` files (column names must contain `gene` and `cluster`).
     - Optionally, store cluster colors as a vector in `seurat_data@misc[[sprintf("%s_colors", cluster_name)]]`.
   - Specify the file paths and parameters by creating a `data/config.json` file. Follow the example in [`data/example_config.json`](data/example_config.json). The App will load the files on startup. 
+  - Specify the visualization config and data file paths by creating a `data/config.json` file and following the example in [`data/example_config.json`](data/example_config.json). 
+    - Multiple datasets can be configured in the same browser.
+    - The browser-level config includes the browser title and url link
+    - The dataset-level config options are listed below:
+      - `name`: the dataset name.
+      - `file`: the `.rds` file path.
+      - `cluster`: the name of the column to use for labelling cell clusters, usually used to describe cell types.
+      - `condition`: the name of the column to split cells by (usually the same as cluster, but could be a different variable such as treatment).
+      - `embedding`: the type of 2D embedding (e.g. tsne or umap).
+      - `diff_ex_cluster`: the name of the `@meta.data` cluster id column that corresponds to the cluster ids in the differential expression `csv` file. In most cases, this is the same as `cluster`.
+      - `diff_ex_file`: the marker gene differential expression `csv` file.
+      - `diff_ex_cluster_file`: alternative differential expression `csv` file, typically used for cluster-specific differential expression.
+      - `cluster_name_mapping` (optional): a mapping from the Seurat cluster ids to more readable cluster names.
+      - `pt_size` (optional): if set, overrides the automatically computed point size in embedding plots.
+      - `font_scale` (optional): if set, scales the font size of cluster labels by this factor.
+      - `label_coordinates` (optional): if set, the cluster labels will be placed at these coordinates rather than at the center of each cluster.
   - To launch Single Cell Browser locally, run the following code.  
   ```
   cd shiny_cell_browser
@@ -67,6 +83,11 @@ Example `config.json` file:
 }
 
 ```
+
+## Troubleshooting
+
+* Cluster names must be numeric (i.e. the variable linked to "cluster" in the config file)
+* The variable linked to "cluster" should be defined in the Seurat object. The `StashIdent` function can be used to store cluster identities as a new named variable within the Seurat object.
 
 ### Dependencies
 
