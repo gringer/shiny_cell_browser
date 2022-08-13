@@ -252,12 +252,108 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
     seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
     seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
-  res <- DoHeatmap(seuratObj, features=inputGeneList,
-                   slot="counts", assay="RNA", raster=FALSE,
-                   group.by=if(inputOpts$splitByCondition){"X__clusterCondREV"} else {"X__clusterREV"}) +
-    scale_y_discrete(labels=function(x){sub("-ENSM.*", "", x)})
-  if(inputOpts$colour_scale == "Viridis"){
-    suppressWarnings(res <- res + scale_fill_viridis())
+  
+  ## Create table linking cells to conditions
+  tibble(cellID = colnames(seuratObj),
+         cell.identity = as.character(seuratObj@meta.data[[
+           if(inputOpts$splitByCondition){"X__clusterCondREV"}
+           else {"X__clusterREV"}]])) %>%
+    arrange(cell.identity, cellID) -> cell.type.tbl
+  
+  ## determine scale upper limit based on maximum average gene expression
+  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
+  ## create colour palette
+  colPal <- viridis(n=256);
+  ## get group position centre points
+  nCells <- ncol(seuratObj);
+  nGenes <- length(inputGeneList);
+  groupPos.rle <- rle(cell.type.tbl$cell.identity)
+  groupPos <- tibble(cell.identity = factor(groupPos.rle$values),
+                     gLength = groupPos.rle$lengths,
+                     gStart = head(c(1,cumsum(groupPos.rle$lengths)), -1),
+                     gEnd = cumsum(groupPos.rle$lengths),
+                     gMid = (gStart + gEnd) / 2);
+
+  seuratObj[["RNA"]]@counts[inputGeneList,,drop=FALSE] %>%
+    as.data.frame() %>%
+    rownames_to_column("gene") %>%
+    as_tibble() %>%
+    mutate(gene = factor(gene, levels=rev(inputGeneList))) %>%
+    ## convert to long format for easier data manipulation
+    pivot_longer(cols = !starts_with("gene"), names_to = "cellID", values_to = "count") %>%
+    ## change counts to log2-ish data values
+    mutate(logCount = ifelse(count == 0, 0, log1p(count) / log1p(2))) %>%
+    ## clip to scale limit
+    mutate(logCountBreak = 
+             round(255 * ifelse(logCount > maxExpr,
+                                maxExpr, logCount) / maxExpr) + 1) %>%
+    mutate(logCountCol = colPal[logCountBreak]) %>%
+    ## add cell categories and sort cells
+    left_join(cell.type.tbl, by="cellID") %>%
+    arrange(cell.identity, cellID, gene) -> int.tbl
+  
+  int.tbl %>%
+    group_by(gene, cell.identity) %>%
+    dplyr::summarise(logCount = max(logCount), .groups="keep") %>%
+    left_join(groupPos, by="cell.identity") -> maxSummary.tbl
+  
+  int.tbl %>%
+    ## convert to matrix
+    select(gene, cellID, logCountBreak) %>%
+    pivot_wider(names_from=cellID, values_from=logCountBreak) %>%
+    column_to_rownames(var="gene") %>%
+    as.matrix() -> heatmap.data.int
+  
+  int.tbl %>%
+    ## convert to matrix
+    select(gene, cellID, logCountCol) %>%
+    pivot_wider(names_from=cellID, values_from=logCountCol) %>%
+    column_to_rownames(var="gene") %>%
+    as.matrix() -> heatmap.data
+
+  ## flip data so that order matches the displayed order on the plot 
+  heatmap.data <- heatmap.data[nGenes:1,,drop=FALSE];
+
+  ## Create base visualisation as dotplot
+  maxSummary.tbl %>%
+    ggplot() +
+    aes(x=gMid, y=gene, col=logCount) +
+    ## set up extents
+    #geom_rect(aes(xmin=0, xmax=nCells, ymin=0, ymax=nGenes), inherit.aes=FALSE) +
+    geom_point() +
+    ## add heatmap
+    #annotation_raster(heatmap.data, 0.5, nCells+0.5, 0.5, nGenes+0.5) +
+    suppressWarnings(scale_x_discrete(name="Identity", limits=groupPos$gMid,
+                                      labels=groupPos$cell.identity, position="top",
+                                      expand=expansion(mult=0))) +
+    theme_classic() +
+    theme(axis.text.x=element_text(angle = -45, hjust=1),
+          axis.line = element_blank()) +
+    scale_colour_viridis_c() + 
+    guides(col=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
+    geom_rect(aes(xmin=gStart, xmax=gEnd, ymin=nGenes+0.6, ymax=nGenes+0.7), 
+              data = groupPos,
+              fill = viridis(nrow(groupPos), option = "H", 
+                             begin=0.1)[as.integer(groupPos$cell.identity)],
+              inherit.aes=FALSE) +
+    geom_segment(data=groupPos,
+                 x=groupPos$gEnd + 0.5, xend=groupPos$gEnd + 0.5, y=0.5, yend=nGenes+0.5, 
+                 inherit.aes=FALSE, lwd=3, col="grey") -> res
+
+  ## Work out amount to add between groups for a consistent gap
+  gapAdd <- (nCells * 0.02) / nrow(groupPos);
+  ## Add cell-level heatmap data per-group as a raster annotation
+  for(gLine in (1:nrow(groupPos))){
+    gStart <- unlist(groupPos[gLine, "gStart"]);
+    gEnd <- unlist(groupPos[gLine, "gEnd"]);
+    gLength <- unlist(groupPos[gLine, "gLength"]);
+    subData <- heatmap.data.int[,gStart:gEnd, drop=FALSE];
+    subText <- heatmap.data[,gStart:gEnd, drop=FALSE];
+    subText <- subText[,hclust(dist(t(subData)))$order, drop=FALSE];
+    res +
+      annotation_raster(subText,
+                        gStart - 0.5 + gapAdd, gEnd + 0.5 - gapAdd,
+                        0.5, nGenes+0.5) -> res
   }
   return(res)
 }
