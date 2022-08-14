@@ -1,6 +1,6 @@
-library(Seurat)
 library(plyr)
 library(dplyr)
+library(Seurat)
 library(ggplot2)
 library(varhandle)
 library(reshape2)
