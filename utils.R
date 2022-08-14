@@ -231,6 +231,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
 
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
+  doViridis <- (inputOpts$colour_scale == "Viridis");
   
   if (length(inputGeneList) == 0) {
     return(NULL)
@@ -263,7 +264,8 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   ## determine scale upper limit based on maximum average gene expression
   maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
   ## create colour palette
-  colPal <- viridis(n=256);
+  colPal <- if(doViridis) {viridis(n=256)} else {
+    colorRampPalette(colors=c("lightgrey", "#e31837"), space="Lab")(256)};
   ## get group position centre points
   nCells <- ncol(seuratObj);
   nGenes <- length(inputGeneList);
@@ -329,7 +331,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
     theme_classic() +
     theme(axis.text.x=element_text(angle = -45, hjust=1),
           axis.line = element_blank()) +
-    scale_colour_viridis_c() + 
+    scale_colour_gradient(low="lightgrey", high="#e31837") +
     guides(col=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
     geom_rect(aes(xmin=gStart, xmax=gEnd, ymin=nGenes+0.6, ymax=nGenes+0.7), 
               data = groupPos,
@@ -339,6 +341,9 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
     geom_segment(data=groupPos,
                  x=groupPos$gEnd + 0.5, xend=groupPos$gEnd + 0.5, y=0.5, yend=nGenes+0.5, 
                  inherit.aes=FALSE, lwd=3, col="grey") -> res
+  if(doViridis){
+    res <- suppressWarnings(res + scale_colour_viridis_c());
+  }
 
   ## Work out amount to add between groups for a consistent gap
   gapAdd <- (nCells * 0.02) / nrow(groupPos);
