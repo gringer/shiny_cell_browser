@@ -65,9 +65,54 @@ FetchGenes <- function(
 
 GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts) {
 
-  inputDataObj = inputDataList[[inputDataIndex]]
-  DimPlot(inputDataObj$seurat_data, cols=inputDataObj$colors, reduction=inputDataObj$embedding,
-          pt.size=2, split.by=if(inputOpts$splitByCondition){inputDataObj$condition} else {NULL})
+  inputDataObj <- inputDataList[[inputDataIndex]]
+  seuratObj <- inputDataObj$seurat_data
+  
+  ## Subset based on chosen groups
+  chooseCells <- TRUE;
+  if(length(inputOpts$selected_cluster) > 0){
+    chooseCells <- as.character(unlist(seuratObj[["X__cluster"]])) %in% 
+      inputOpts$selected_cluster;
+  }
+  if(length(inputOpts$selected_ctype) > 0){
+    chooseCells <- chooseCells & 
+      as.character(unlist(seuratObj[["X__cond"]])) %in% 
+      inputOpts$selected_ctype;
+  }
+  if(!all(chooseCells)){
+    seuratObj <- subset(seuratObj, cells = which(chooseCells));
+    ## refactor groups to stop empties from showing
+    seuratObj[["X__cond"]] <- factor(unlist(seuratObj[["X__cond"]]));
+    seuratObj[["X__cluster"]] <- factor(unlist(seuratObj[["X__cluster"]]));
+  }
+  
+  ## Fetch dimensional reduction
+  Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
+    data.frame() %>%
+    rownames_to_column("cell") %>%
+    as_tibble() %>%
+    mutate(cell=gsub("-", ".", cell)) -> cell.tbl;
+  ## identify reduction names
+  cxName <- colnames(cell.tbl)[2];
+  cyName <- colnames(cell.tbl)[3];
+  rangeX <- range(cell.tbl[,2]);
+  rangeY <- range(cell.tbl[,3]);
+  ## add cluster and condition columns
+  cell.tbl$cluster <- factor(unlist(seuratObj[["X__cluster"]]));
+  cell.tbl$condition <- factor(unlist(seuratObj[["X__cond"]]));
+  
+  cell.tbl %>% ggplot() +
+    aes(x=!!sym(cxName), y=!!sym(cyName), colour=cluster) +
+    xlim(rangeX[1], rangeX[2]) +
+    ylim(rangeY[1], rangeY[2]) +
+    scale_colour_viridis_d(option="H", begin=0.1) +
+    geom_point() +
+    theme_cowplot() +
+    theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+  if(inputOpts$splitByCondition){
+    res <- res + facet_wrap(~ condition);
+  }
+  return(res);
 }
 
 GetPlotData <- function(inputDataObj, inputGene) {
@@ -96,6 +141,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
         data.frame() %>%
         rownames_to_column("feature") %>%
         as_tibble() %>%
+        mutate(feature = factor(feature, levels=inputGeneList)) %>%
         pivot_longer(cols = -1, names_to="cell", values_to="expr") -> feature.tbl;
     colnames(feature.tbl) <- sub("-ENS.*$", "", colnames(feature.tbl));
     ## Fetch dimensional reduction
@@ -135,17 +181,21 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
                  inputOpts$selected_ctype;
     }
     cell.tbl <- cell.tbl %>% filter(includeFilter);
+    
     ## merge expression + cell data
     cell.tbl %>%
         left_join(feature.tbl, by="cell") %>%
         arrange(expr) -> merged.tbl
     ## plot object
+    maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
     merged.tbl %>% ggplot() +
-      aes(x=!!sym(cxName), y=!!sym(cyName), col=log1p(expr)) +
+      aes(x=!!sym(cxName), y=!!sym(cyName), colour=(log1p(expr)/log1p(2))) +
       xlim(rangeX[1], rangeX[2]) +
       ylim(rangeY[1], rangeY[2]) +
+      lims(colour=c(0, maxExpr)) +
       geom_point() +
-      theme_bw() +
+      theme_cowplot() +
+      guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
       theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
     if((length(inputOpts$selected_cluster) > 1) | (length(inputOpts$selected_ctype) > 1)){
       res <- res + facet_wrap(~ group + feature);
@@ -154,9 +204,9 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     }
     ## update dot colours
     if(inputOpts$colour_scale == "Viridis"){
-        res <- res + scale_colour_viridis();
+        res <- suppressWarnings(res + scale_colour_viridis());
     } else {
-        res <- res + scale_colour_gradient(low = "lightgrey", high="#e31837");
+        res <- suppressWarnings(res + scale_colour_gradient(low = "lightgrey", high="#e31837"));
     }
     return(res);
 }
@@ -186,6 +236,7 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) 
     seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
     seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
+  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
   ## Create table linking cells to conditions
   tibble(cellID = colnames(seuratObj),
          cell.identity = as.character(seuratObj@meta.data[[
@@ -209,20 +260,20 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) 
   # Draw dotplot graph
   dotplot.data %>%
     ggplot() +
-    aes(x=gene, y=cell.identity, size=pctExpressed, col=logMeanExpr) +
+    aes(x=gene, y=cell.identity, size=pctExpressed, colour=logMeanExpr) +
     geom_point() +
-    scale_size(limits=c(0,100)) +
-    scale_colour_gradient(low="lightgrey", high="#e31837") +
+    lims(size=c(0,100), colour=c(0, maxExpr)) +
     scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
-    xlab("Features") +
+    xlab("Feature") +
     ylab("Cluster") +
     theme_cowplot() +
     guides(size=guide_legend(title = "% Expressed"),
-           colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)),
-                                  draw.ulim = TRUE, draw.llim = TRUE)) +
+           colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
     theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
   if(inputOpts$colour_scale == "Viridis"){
-    suppressWarnings(res <- res + scale_color_viridis_c());
+    res <- suppressWarnings(res + scale_color_viridis_c());
+  } else {
+    res <- suppressWarnings(res + scale_colour_gradient(low="lightgrey", high="#e31837"));
   }
   return(res);
 }
@@ -319,7 +370,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   ## Create base visualisation as dotplot
   maxSummary.tbl %>%
     ggplot() +
-    aes(x=gMid, y=gene, col=logCount) +
+    aes(x=gMid, y=gene, colour=logCount) +
     ## set up extents
     #geom_rect(aes(xmin=0, xmax=nCells, ymin=0, ymax=nGenes), inherit.aes=FALSE) +
     geom_point() +
@@ -328,11 +379,11 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
     suppressWarnings(scale_x_discrete(name="Identity", limits=groupPos$gMid,
                                       labels=groupPos$cell.identity, position="top",
                                       expand=expansion(mult=0))) +
-    theme_classic() +
+    ylab("Feature") +
+    theme_cowplot() +
     theme(axis.text.x=element_text(angle = -45, hjust=1),
           axis.line = element_blank()) +
-    scale_colour_gradient(low="lightgrey", high="#e31837") +
-    guides(col=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
+    guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
     geom_rect(aes(xmin=gStart, xmax=gEnd, ymin=nGenes+0.6, ymax=nGenes+0.7), 
               data = groupPos,
               fill = viridis(nrow(groupPos), option = "H", 
@@ -343,6 +394,8 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
                  inherit.aes=FALSE, lwd=3, col="grey") -> res
   if(doViridis){
     res <- suppressWarnings(res + scale_colour_viridis_c());
+  } else {
+    res <- suppressWarnings(res + scale_colour_gradient(low="lightgrey", high="#e31837"));
   }
 
   ## Work out amount to add between groups for a consistent gap
