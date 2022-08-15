@@ -252,6 +252,7 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) 
     left_join(cell.type.tbl, by="cellID") %>%
     pivot_longer(cols = !starts_with(c("cellID", "cell.identity")), 
                  names_to = "gene", values_to = "count") %>%
+    mutate(gene = factor(gene, levels=inputGeneList)) %>%
     group_by(cell.identity, gene) %>%
     dplyr::summarise(pctExpressed = round(100*sum(count != 0) / n(), 1),
                      logMeanExpr = ifelse(pctExpressed == 0, 0, 
