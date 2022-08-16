@@ -42,6 +42,7 @@ ui <- fluidPage(
                              selectizeInput(inputId = "selected_cluster", label = "Cluster(s)", choices = NULL,
                                             multiple=TRUE,
                                             options = list(placeholder = '[All]')),
+                             selectInput("conditionVariable", label="Condition Variable", choices=c("condition"), selectize=TRUE),
                              selectizeInput(inputId = "selected_ctype", label = "Condition(s)", choices = NULL,
                                             multiple=TRUE,
                                             options = list(placeholder = '[All]')),

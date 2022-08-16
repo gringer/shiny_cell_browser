@@ -31,7 +31,6 @@ dataset = datasets[[1]]
 #Read the config data
 config <- json_file$config
 
-#Now read in the data
 calc_pt_size <- function(n) { 25 / n ^ 0.33 }
 
 SetAllIdent <- function(object, ids) {
@@ -68,6 +67,10 @@ read_data <- function(x) {
   condition <- x$condition
   genes <- sort(rownames(GetAssayData(seurat_data, slot="counts", assay="RNA")))
   
+  ## Identify potentially useful condition names
+  condNames <- sapply(names(seurat_data@meta.data), function(x){length(unique(sc@meta.data[[x]]))});
+  condNames <- unique(c(condition, sort(names(which(condNames > 1 & condNames < 100)))));
+
   dimEmbedding <- x$embedding;
   if(is.null(dimEmbedding)){
     dimEmbedding <- "umap";
@@ -142,6 +145,7 @@ read_data <- function(x) {
       colors = colors,
       genes = genes,
       meta = meta,
+      condNames = condNames,
       clusters = as.character(Idents(seurat_data)),
       cellTypes = dataConds,
       
@@ -179,13 +183,14 @@ server <- function(input, output, session) {
     return(data_list[[current_dataset_index()]])
   })
 
-  #Update the gene list on change
+  #Update the UI elements on change
   observeEvent({ organoid() }, {
     updateSelectizeInput(session, 'selected_gene', choices = organoid()$genes, server = TRUE)
-    updateSelectizeInput(session, 'selected_cluster', choices = sort(unique(organoid()$clusters)),
-                         server = TRUE)
-    updateSelectizeInput(session, 'selected_ctype', choices = sort(unique(organoid()$cellTypes)),
-                         server = TRUE)
+    updateSelectizeInput(session, 'selected_cluster', choices = sort(unique(organoid()$clusters)))
+    updateSelectInput(session, 'conditionVariable', choices = organoid()$condNames)
+    suppressWarnings(
+      updateSelectizeInput(session, 'selected_ctype', choices = sort(unique(organoid()$cellTypes)),
+                          server=FALSE));
   })
 
   #Logging
@@ -206,6 +211,23 @@ server <- function(input, output, session) {
     logging::loginfo("Gene selection from text input: %s", input$selected_gene)
   },
                ignoreNULL = TRUE, ignoreInit = TRUE)
+  
+  #Update condition names
+  observeEvent(input$conditionVariable, {
+    seurat_data <- organoid()$seurat_data;
+    if(input$conditionVariable %in% names(seurat_data@meta.data)){
+      dataConds <- as.character(seurat_data@meta.data[[input$conditionVariable]]);
+      seurat_data$cellTypes <- dataConds;
+      suppressWarnings(
+        updateSelectizeInput(session, 'selected_ctype',
+                             choices = sort(dataConds), server=FALSE));
+      clusterConds <- paste(Idents(seurat_data), dataConds, sep="_");
+      seurat_data[["X__cond"]] = dataConds;
+      seurat_data[["X__clusterCondREV"]] = factor(clusterConds,
+                                                  levels=sort(unique(clusterConds), 
+                                                              decreasing=TRUE));
+    }
+  }, ignoreNULL=TRUE, ignoreInit=TRUE)
 
   #Update expression plot on table row click 
   observeEvent({ input$clusterDE_gene_table_rows_selected }, {
