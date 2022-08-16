@@ -306,9 +306,12 @@ server <- function(input, output, session) {
   })
   
   output$cluster_count_table <- DT::renderDT({
-    cluster <- Idents(organoid()$seurat_data)
-    condition <- unlist(organoid()$seurat_data[[organoid()$condition]])
+    cluster <- factor(Idents(organoid()$seurat_data))
+    cluster <- factor(cluster, levels = sort(levels(cluster)));
+    condition <- factor(unlist(organoid()$seurat_data[[input$conditionVariable]]));
+    condition <- factor(condition, levels=sort(levels(condition)));
     out <- as_tibble(as.matrix(table(cluster, condition))) %>%
+      arrange(cluster, condition) %>%
       pivot_wider(names_from="condition", values_from="n")
     datatable(out)
   })
