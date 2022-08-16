@@ -127,7 +127,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
 
     inputDataObj <- inputDataList[[inputDataIndex]]
     seuratObj <- inputDataObj$seurat_data
-    ## Calculate expression range
+    ## Determine maximum RNA expression (pre-filtering)
     maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
 
     #On initialization, check to make sure a valid gene has been selected
@@ -208,37 +208,51 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     return(res);
 }
 
-GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
-
-  inputDataObj <- inputDataList[[inputDataIndex]]
-  seuratObj <- inputDataObj$seurat_data
+GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
 
   if (length(inputGeneList) == 0) {
     return(NULL)
   }
+
+  inputDataObj <- inputDataList[[inputDataIndex]]
+  seuratObj <- inputDataObj$seurat_data
+  ## Determine maximum RNA expression (pre-filtering)
+  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
+  
+  clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
+  conds <- as.character(unlist(seuratObj[[values$conditionVariable]]));
   
   chooseCells <- TRUE;
   if(length(inputOpts$selected_cluster) > 0){
-    chooseCells <- as.character(unlist(seuratObj[["X__cluster"]])) %in% 
-      inputOpts$selected_cluster;
+    chooseCells <- clusters %in% inputOpts$selected_cluster;
   }
   if(length(inputOpts$selected_ctype) > 0){
-    chooseCells <- chooseCells & 
-      as.character(unlist(seuratObj[["X__cond"]])) %in% 
-      inputOpts$selected_ctype;
+    chooseCells <- chooseCells & (conds %in% inputOpts$selected_ctype);
   }
   if(!all(chooseCells)){
     seuratObj <- subset(seuratObj, cells = which(chooseCells));
-    ## refactor groups to stop empties from showing
-    seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
-    seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
-  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
+  ## Refactor to remove empties and sort by specified order (if applicable)
+  if(length(inputOpts$selected_cluster) > 0){
+    clusters <- factor(clusters[chooseCells], levels=rev(inputOpts$selected_cluster));
+  } else {
+    clusters <- factor(clusters[chooseCells]);
+    clusters <- factor(clusters, levels=rev(sort(levels(clusters))));
+  }
+  if(length(inputOpts$selected_ctype) > 0){
+    conds <- factor(conds[chooseCells], levels=rev(inputOpts$selected_ctype));
+  } else {
+    conds <- factor(conds[chooseCells]);
+    conds <- factor(conds, levels=rev(sort(levels(conds))));
+  }
+  cell.identities <- clusters;
+  if(inputOpts$splitByCondition){
+    idLevels <- outer(levels(clusters), levels(conds), paste, sep="_");
+    cell.identities <- factor(paste(clusters, conds, sep="_"), levels=idLevels);
+  }
   ## Create table linking cells to conditions
   tibble(cellID = colnames(seuratObj),
-         cell.identity = as.character(seuratObj@meta.data[[
-           if(inputOpts$splitByCondition){"X__clusterCondREV"}
-           else {"X__clusterREV"}]])) -> cell.type.tbl
+         cell.identity = cell.identities) -> cell.type.tbl
   ## Create group summary table for DotPlot graph
   seuratObj[["RNA"]]@counts[inputGeneList, , drop=FALSE] %>%
     as.data.frame() %>%
@@ -278,13 +292,16 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) 
 
 GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
 
-  inputDataObj <- inputDataList[[inputDataIndex]]
-  seuratObj <- inputDataObj$seurat_data
-  doViridis <- (inputOpts$colour_scale == "Viridis");
-  
   if (length(inputGeneList) == 0) {
     return(NULL)
   }
+
+  inputDataObj <- inputDataList[[inputDataIndex]]
+  seuratObj <- inputDataObj$seurat_data
+  ## Determine maximum RNA expression (pre-filtering)
+  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
+  
+  doViridis <- (inputOpts$colour_scale == "Viridis");
   
   chooseCells <- TRUE;
   if(length(inputOpts$selected_cluster) > 0){
@@ -310,8 +327,6 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
            else {"X__clusterREV"}]])) %>%
     arrange(cell.identity, cellID) -> cell.type.tbl
   
-  ## determine scale upper limit based on maximum average gene expression
-  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
   ## create colour palette
   colPal <- if(doViridis) {viridis(n=256)} else {
     colorRampPalette(colors=c("lightgrey", "#e31837"), space="Lab")(256)};
