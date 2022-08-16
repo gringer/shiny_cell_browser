@@ -264,7 +264,7 @@ server <- function(input, output, session) {
     GetClusterPlot(data_list, current_dataset_index(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$expression_plot <- renderPlot({
-    GetExpressionPlot(data_list, current_dataset_index(), input$selected_gene, input)
+    GetExpressionPlot(data_list, current_dataset_index(), input$selected_gene, input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$dot_plot <- renderPlot({
     GetDotPlot(data_list, current_dataset_index(), input$selected_gene, input)
@@ -382,10 +382,10 @@ server <- function(input, output, session) {
           GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Expression Plot"){
-            GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input)
+            GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Cluster Plot"){
-          GetClusterPlot(data_list, current_dataset_index(), input)
+          GetClusterPlot(data_list, current_dataset_index(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else {
           png(file, width=2200, height=1600, pointsize=20)

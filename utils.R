@@ -94,7 +94,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
   cyName <- colnames(cell.tbl)[3];
   rangeX <- range(cell.tbl[,2]);
   rangeY <- range(cell.tbl[,3]);
-  ## add cluster and condition columns (and refactor to exclude empties)
+  ## add cluster columns (and refactor to exclude empties)
   cell.tbl$cluster <- factor(unlist(seuratObj[["X__cluster"]]));
 
   cell.tbl %>% ggplot() +
@@ -123,12 +123,14 @@ GetPlotData <- function(inputDataObj, inputGene) {
   }
 }
 
-GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
+GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
 
     inputDataObj <- inputDataList[[inputDataIndex]]
     seuratObj <- inputDataObj$seurat_data
+    ## Calculate expression range
+    maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
 
-    #On initialization, check if the inputGene is not defined
+    #On initialization, check to make sure a valid gene has been selected
     if ((length(inputGeneList) == 0) || ((length(inputGeneList) == 1) && (inputGeneList == ""))) {
       return(NULL)
     }
@@ -145,45 +147,43 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
         data.frame() %>%
         rownames_to_column("cell") %>%
         as_tibble() %>%
-        mutate(cell=gsub("-", ".", cell)) -> cell.tbl;
+        mutate(cell=gsub("-", ".", cell),
+               cluster=factor(unlist(seuratObj[["X__cluster"]])),
+               condition=factor(unlist(seuratObj[[values$conditionVariable]]))) -> cell.tbl;
     ## identify reduction names
     cxName <- colnames(cell.tbl)[2];
     cyName <- colnames(cell.tbl)[3];
     rangeX <- range(cell.tbl[,2]);
     rangeY <- range(cell.tbl[,3]);
     ## create cell groups
-    if((length(inputOpts$selected_ctype) > 1) | (length(inputOpts$selected_cluster) > 1)){
-      cell.tbl$group <- as.character(unlist(
-        seuratObj[[if(length(inputOpts$selected_ctype) > 1){
-          if(length(inputOpts$selected_cluster) > 1){
-            "X__clusterCondREV"
-          } else {"X__cond"}
-        } else if(length(inputOpts$selected_cluster) > 1){
-          "X__cluster"
-        }]]
-      ));
-    } else {
-      cell.tbl$group = "1";
-    }
+    cell.tbl$group = "1";
     ## filter cluster / cell type at cell level
-    cell.tbl$includeFilter <- TRUE;
     if(length(inputOpts$selected_cluster) > 0){
-      cell.tbl$includeFilter <- as.character(unlist(seuratObj[["X__cluster"]])) %in% 
-                 inputOpts$selected_cluster;
+      cell.tbl <- filter(cell.tbl, cluster %in% inputOpts$selected_cluster);
+      cell.tbl$cluster <- factor(cell.tbl$cluster, levels=inputOpts$selected_cluster);
+      cell.tbl$group <- cell.tbl$cluster;
     }
-    if(length(inputOpts$selected_ctype) > 0){
-      cell.tbl$includeFilter <- cell.tbl$includeFilter & 
-        as.character(unlist(seuratObj[["X__cond"]])) %in% 
-                 inputOpts$selected_ctype;
+    if((length(inputOpts$selected_ctype) > 0) | (inputOpts$splitByCondition)){
+      if(length(inputOpts$selected_ctype) > 0) {
+        cell.tbl <- filter(cell.tbl, condition %in% inputOpts$selected_ctype);
+        cell.tbl$condition <- factor(cell.tbl$condition, levels=inputOpts$selected_ctype);
+      }
+      if(length(inputOpts$selected_cluster) > 0){
+        clusterCondLevels <- outer(levels(cell.tbl$cluster),
+                                   levels(cell.tbl$condition),
+                                   paste, sep="_");
+        cell.tbl$group <- factor(paste(cell.tbl$cluster, cell.tbl$condition, sep="_"),
+                                 levels=clusterCondLevels);
+      } else {
+        cell.tbl$group <- cell.tbl$condition;
+      }
     }
-    cell.tbl <- cell.tbl %>% filter(includeFilter);
-    
+
     ## merge expression + cell data
     cell.tbl %>%
         left_join(feature.tbl, by="cell") %>%
         arrange(expr) -> merged.tbl
     ## plot object
-    maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
     merged.tbl %>% ggplot() +
       aes(x=!!sym(cxName), y=!!sym(cyName), colour=(log1p(expr)/log1p(2))) +
       xlim(rangeX[1], rangeX[2]) +
@@ -193,16 +193,17 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
       theme_cowplot() +
       guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
       theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
-    if((length(inputOpts$selected_cluster) > 1) | (length(inputOpts$selected_ctype) > 1)){
+    if((length(inputOpts$selected_cluster) > 1) | (length(inputOpts$selected_ctype) > 1) |
+       inputOpts$splitByCondition){
       res <- res + facet_wrap(~ group + feature);
     } else if(length(inputGeneList) > 1){
       res <- res + facet_wrap(~ feature);
     }
     ## update dot colours
     if(inputOpts$colour_scale == "Viridis"){
-        res <- suppressWarnings(res + scale_colour_viridis());
+        res <- res + scale_colour_viridis();
     } else {
-        res <- suppressWarnings(res + scale_colour_gradient(low = "lightgrey", high="#e31837"));
+        res <- res + scale_colour_gradient(low = "lightgrey", high="#e31837");
     }
     return(res);
 }
