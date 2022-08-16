@@ -170,6 +170,8 @@ server <- function(input, output, session) {
   values <- reactiveValues()
   values$selectedGenes <- ""
   values$selectedCluster <- ""
+  values$conditionVariable <- ""
+  values$dataConds <- ""
   updateSelectInput(session, "selected_dataset", choices = dataset_names, selected = dataset_names[[1]])
 
   #Updates dataset index on selection and updates gene list
@@ -188,9 +190,7 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, 'selected_gene', choices = organoid()$genes, server = TRUE)
     updateSelectizeInput(session, 'selected_cluster', choices = sort(unique(organoid()$clusters)))
     updateSelectInput(session, 'conditionVariable', choices = organoid()$condNames)
-    suppressWarnings(
-      updateSelectizeInput(session, 'selected_ctype', choices = sort(unique(organoid()$cellTypes)),
-                          server=FALSE));
+    updateSelectizeInput(session, 'selected_ctype', choices = unique(sort(organoid()$cellTypes)));
   })
 
   #Logging
@@ -218,9 +218,8 @@ server <- function(input, output, session) {
     if(input$conditionVariable %in% names(seurat_data@meta.data)){
       dataConds <- as.character(seurat_data@meta.data[[input$conditionVariable]]);
       seurat_data$cellTypes <- dataConds;
-      suppressWarnings(
-        updateSelectizeInput(session, 'selected_ctype',
-                             choices = sort(dataConds), server=FALSE));
+      updateSelectizeInput(session, 'selected_ctype',
+                             choices = unique(sort(dataConds)));
       clusterConds <- paste(Idents(seurat_data), dataConds, sep="_");
       seurat_data[["X__cond"]] = dataConds;
       seurat_data[["X__clusterCondREV"]] = factor(clusterConds,
