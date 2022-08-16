@@ -172,6 +172,7 @@ server <- function(input, output, session) {
   values$selectedCluster <- ""
   values$conditionVariable <- ""
   values$dataConds <- ""
+  values$clusterConds <- ""
   updateSelectInput(session, "selected_dataset", choices = dataset_names, selected = dataset_names[[1]])
 
   #Updates dataset index on selection and updates gene list
@@ -190,6 +191,7 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, 'selected_gene', choices = organoid()$genes, server = TRUE)
     updateSelectizeInput(session, 'selected_cluster', choices = sort(unique(organoid()$clusters)))
     updateSelectInput(session, 'conditionVariable', choices = organoid()$condNames)
+    ## TODO: consider triggering the condition variable update
     updateSelectizeInput(session, 'selected_ctype', choices = unique(sort(organoid()$cellTypes)));
   })
 
@@ -198,12 +200,6 @@ server <- function(input, output, session) {
     logging::loginfo("New client with ip: %s", input$client$ip)
   },
                ignoreNULL = TRUE, ignoreInit = TRUE)
-
-  #Update expression plot on click
-  observeEvent({ NULL }, 
-               {  },
-  ignoreNULL = TRUE, ignoreInit = TRUE)
-
 
   #Update expression plot from selectize input
   observeEvent({ input$selected_gene }, {
@@ -217,14 +213,12 @@ server <- function(input, output, session) {
     seurat_data <- organoid()$seurat_data;
     if(input$conditionVariable %in% names(seurat_data@meta.data)){
       dataConds <- as.character(seurat_data@meta.data[[input$conditionVariable]]);
-      seurat_data$cellTypes <- dataConds;
-      updateSelectizeInput(session, 'selected_ctype',
-                             choices = unique(sort(dataConds)));
       clusterConds <- paste(Idents(seurat_data), dataConds, sep="_");
-      seurat_data[["X__cond"]] = dataConds;
-      seurat_data[["X__clusterCondREV"]] = factor(clusterConds,
-                                                  levels=sort(unique(clusterConds), 
-                                                              decreasing=TRUE));
+      values$conditionVariable <- input$conditionVariable;
+      values$dataConds <- dataConds;
+      values$clusterConds <- clusterConds;
+      updateSelectizeInput(session, 'selected_ctype',
+                           choices = unique(sort(dataConds)));
     }
   }, ignoreNULL=TRUE, ignoreInit=TRUE)
 
@@ -267,7 +261,7 @@ server <- function(input, output, session) {
 
   ##GRAPHIC OUTPUTS
   output$cluster_plot <- renderPlot({
-    GetClusterPlot(data_list, current_dataset_index(), input)
+    GetClusterPlot(data_list, current_dataset_index(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$expression_plot <- renderPlot({
     GetExpressionPlot(data_list, current_dataset_index(), input$selected_gene, input)

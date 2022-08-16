@@ -63,7 +63,7 @@ FetchGenes <- function(
 
 ##Helper plotting functions
 
-GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts) {
+GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
 
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
@@ -76,14 +76,10 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts) {
   }
   if(length(inputOpts$selected_ctype) > 0){
     chooseCells <- chooseCells & 
-      as.character(unlist(seuratObj[["X__cond"]])) %in% 
-      inputOpts$selected_ctype;
+      values$dataConds %in% inputOpts$selected_ctype;
   }
   if(!all(chooseCells)){
     seuratObj <- subset(seuratObj, cells = which(chooseCells));
-    ## refactor groups to stop empties from showing
-    seuratObj[["X__cond"]] <- factor(unlist(seuratObj[["X__cond"]]));
-    seuratObj[["X__cluster"]] <- factor(unlist(seuratObj[["X__cluster"]]));
   }
   
   ## Fetch dimensional reduction
@@ -91,16 +87,16 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts) {
     data.frame() %>%
     rownames_to_column("cell") %>%
     as_tibble() %>%
-    mutate(cell=gsub("-", ".", cell)) -> cell.tbl;
+    mutate(cell=gsub("-", ".", cell),
+           condition=factor(unlist(seuratObj[[values$conditionVariable]]))) -> cell.tbl;
   ## identify reduction names
   cxName <- colnames(cell.tbl)[2];
   cyName <- colnames(cell.tbl)[3];
   rangeX <- range(cell.tbl[,2]);
   rangeY <- range(cell.tbl[,3]);
-  ## add cluster and condition columns
+  ## add cluster and condition columns (and refactor to exclude empties)
   cell.tbl$cluster <- factor(unlist(seuratObj[["X__cluster"]]));
-  cell.tbl$condition <- factor(unlist(seuratObj[["X__cond"]]));
-  
+
   cell.tbl %>% ggplot() +
     aes(x=!!sym(cxName), y=!!sym(cyName), colour=cluster) +
     xlim(rangeX[1], rangeX[2]) +
@@ -167,7 +163,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
         }]]
       ));
     } else {
-      cell.tbl$group = 1;
+      cell.tbl$group = "1";
     }
     ## filter cluster / cell type at cell level
     cell.tbl$includeFilter <- TRUE;
