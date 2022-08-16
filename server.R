@@ -68,7 +68,8 @@ read_data <- function(x) {
   genes <- sort(rownames(GetAssayData(seurat_data, slot="counts", assay="RNA")))
   
   ## Identify potentially useful condition names
-  condNames <- sapply(names(seurat_data@meta.data), function(x){length(unique(sc@meta.data[[x]]))});
+  condNames <- sapply(names(seurat_data@meta.data), 
+                      function(x){length(unique(seurat_data@meta.data[[x]]))});
   condNames <- unique(c(condition, sort(names(which(condNames > 1 & condNames < 100)))));
 
   dimEmbedding <- x$embedding;
