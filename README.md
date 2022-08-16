@@ -13,7 +13,12 @@ Interactive visualization of single cell RNAseq datasets.
   - The main branch currently supports Seurat v3 and Seurat v4 (not v2).
   - Install dependencies as listed [below](#dependencies).
   - Prepare data
-    - Store Seurat data objects as `.rds` files.
+    - Store Seurat data objects as `.rds` files. Application loading time can be improved by creating a temporary copy removing transformed data prior to saving the data object, e.g.:
+    ```
+    sc.forApp <- sc
+    sc.forApp[["integrated"]] <- NULL
+    saveRDS(sc.forApp, "fileToSave.rds")
+    ```
     - Store marker gene differential expression table in `.csv` files (column names must contain `gene` and `cluster`).
     - Optionally, store cluster colors as a vector in `seurat_data@misc[[sprintf("%s_colors", cluster_name)]]`.
   - Specify the file paths and parameters by creating a `data/config.json` file. Follow the example in [`data/example_config.json`](data/example_config.json). The App will load the files on startup. 
