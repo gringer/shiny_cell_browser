@@ -270,7 +270,7 @@ server <- function(input, output, session) {
     GetDotPlot(data_list, current_dataset_index(), input$selected_gene, input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$heatmap_plot <- renderPlot({
-    GetHeatmapPlot(data_list, current_dataset_index(), input$selected_gene, input)
+    GetHeatmapPlot(data_list, current_dataset_index(), input$selected_gene, input, values)
   }, width=plot_window_width, height=plot_window_height)
   
   ## Metadata description
@@ -379,7 +379,7 @@ server <- function(input, output, session) {
           GetDotPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Heat Map"){
-          GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input)
+          GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Expression Plot"){
             GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input, values)

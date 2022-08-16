@@ -290,41 +290,52 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
   return(res);
 }
 
-GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts) {
+GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
 
   if (length(inputGeneList) == 0) {
     return(NULL)
   }
-
+  
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
   maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
-  
   doViridis <- (inputOpts$colour_scale == "Viridis");
+  
+  clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
+  conds <- as.character(unlist(seuratObj[[values$conditionVariable]]));
   
   chooseCells <- TRUE;
   if(length(inputOpts$selected_cluster) > 0){
-    chooseCells <- as.character(unlist(seuratObj[["X__cluster"]])) %in% 
-      inputOpts$selected_cluster;
+    chooseCells <- clusters %in% inputOpts$selected_cluster;
   }
   if(length(inputOpts$selected_ctype) > 0){
-    chooseCells <- chooseCells & 
-      as.character(unlist(seuratObj[["X__cond"]])) %in% 
-      inputOpts$selected_ctype;
+    chooseCells <- chooseCells & (conds %in% inputOpts$selected_ctype);
   }
   if(!all(chooseCells)){
     seuratObj <- subset(seuratObj, cells = which(chooseCells));
-    ## refactor groups to stop empties from showing
-    seuratObj[["X__clusterCondREV"]] <- factor(unlist(seuratObj[["X__clusterCondREV"]]));
-    seuratObj[["X__clusterREV"]] <- factor(unlist(seuratObj[["X__clusterREV"]]));
   }
-  
+  ## Refactor to remove empties and sort by specified order (if applicable)
+  if(length(inputOpts$selected_cluster) > 0){
+    clusters <- factor(clusters[chooseCells], levels=inputOpts$selected_cluster);
+  } else {
+    clusters <- factor(clusters[chooseCells]);
+    clusters <- factor(clusters, levels=sort(levels(clusters)));
+  }
+  if(length(inputOpts$selected_ctype) > 0){
+    conds <- factor(conds[chooseCells], levels=inputOpts$selected_ctype);
+  } else {
+    conds <- factor(conds[chooseCells]);
+    conds <- factor(conds, levels=sort(levels(conds)));
+  }
+  cell.identities <- clusters;
+  if(inputOpts$splitByCondition){
+    idLevels <- outer(levels(clusters), levels(conds), paste, sep="_");
+    cell.identities <- factor(paste(clusters, conds, sep="_"), levels=idLevels);
+  }
   ## Create table linking cells to conditions
   tibble(cellID = colnames(seuratObj),
-         cell.identity = as.character(seuratObj@meta.data[[
-           if(inputOpts$splitByCondition){"X__clusterCondREV"}
-           else {"X__clusterREV"}]])) %>%
+         cell.identity = cell.identities) %>%
     arrange(cell.identity, cellID) -> cell.type.tbl
   
   ## create colour palette
@@ -333,8 +344,8 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   ## get group position centre points
   nCells <- ncol(seuratObj);
   nGenes <- length(inputGeneList);
-  groupPos.rle <- rle(cell.type.tbl$cell.identity)
-  groupPos <- tibble(cell.identity = factor(groupPos.rle$values),
+  groupPos.rle <- rle(as.character(cell.type.tbl$cell.identity));
+  groupPos <- tibble(cell.identity = factor(groupPos.rle$values, levels=levels(cell.identities)),
                      gLength = groupPos.rle$lengths,
                      gStart = head(c(1,cumsum(groupPos.rle$lengths)), -1),
                      gEnd = cumsum(groupPos.rle$lengths),
