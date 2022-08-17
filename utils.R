@@ -67,6 +67,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
 
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
+  maxViridis <- viridis(100)[100];
   
   ## Subset based on chosen groups
   chooseCells <- TRUE;
@@ -101,7 +102,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
     aes(x=!!sym(cxName), y=!!sym(cyName), colour=cluster) +
     xlim(rangeX[1], rangeX[2]) +
     ylim(rangeY[1], rangeY[2]) +
-    scale_colour_viridis_d(option="H", begin=0.1) +
+    scale_colour_viridis(option="H", begin=0.1, discrete=TRUE) +
     geom_point() +
     theme_cowplot() +
     theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
@@ -129,6 +130,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     seuratObj <- inputDataObj$seurat_data
     ## Determine maximum RNA expression (pre-filtering)
     maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
+    maxViridis <- viridis(100)[100];
 
     #On initialization, check to make sure a valid gene has been selected
     if ((length(inputGeneList) == 0) || ((length(inputGeneList) == 1) && (inputGeneList == ""))) {
@@ -188,7 +190,6 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
       aes(x=!!sym(cxName), y=!!sym(cyName), colour=(log2(1+expr))) +
       xlim(rangeX[1], rangeX[2]) +
       ylim(rangeY[1], rangeY[2]) +
-      lims(colour=c(0, maxExpr)) +
       geom_point() +
       theme_cowplot() +
       guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
@@ -201,9 +202,10 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     }
     ## update dot colours
     if(inputOpts$colour_scale == "Viridis"){
-        res <- res + scale_colour_viridis();
+        res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
     } else {
-        res <- res + scale_colour_gradient(low = "lightgrey", high="#e31837");
+        res <- res + scale_colour_gradient(low = "lightgrey", high="#e31837",
+                                           limits=c(0,maxExpr), na.value="#e31837");
     }
     return(res);
 }
@@ -218,6 +220,7 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
   maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
+  maxViridis <- viridis(100)[100];
 
   clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
   conds <- as.character(unlist(seuratObj[[values$conditionVariable]]));
@@ -283,9 +286,10 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
            colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
     theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
   if(inputOpts$colour_scale == "Viridis"){
-    res <- suppressWarnings(res + scale_color_viridis_c());
+    res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
   } else {
-    res <- suppressWarnings(res + scale_colour_gradient(low="lightgrey", high="#e31837"));
+    res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
+                                       limits=c(0,maxExpr), na.value="#e31837");
   }
   return(res);
 }
@@ -300,6 +304,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
   maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
+  maxViridis <- viridis(100)[100];
   doViridis <- (inputOpts$colour_scale == "Viridis");
   
   clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
@@ -417,9 +422,10 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
                  x=groupPos$gEnd + 0.5, xend=groupPos$gEnd + 0.5, y=0.5, yend=nGenes+0.5, 
                  inherit.aes=FALSE, lwd=3, col="grey") -> res
   if(doViridis){
-    res <- suppressWarnings(res + scale_colour_viridis_c());
+    res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
   } else {
-    res <- suppressWarnings(res + scale_colour_gradient(low="lightgrey", high="#e31837"));
+    res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
+                                       limits=c(0,maxExpr), na.value="#e31837");
   }
 
   ## Work out amount to add between groups for a consistent gap
