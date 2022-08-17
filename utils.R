@@ -128,7 +128,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     inputDataObj <- inputDataList[[inputDataIndex]]
     seuratObj <- inputDataObj$seurat_data
     ## Determine maximum RNA expression (pre-filtering)
-    maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
+    maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
 
     #On initialization, check to make sure a valid gene has been selected
     if ((length(inputGeneList) == 0) || ((length(inputGeneList) == 1) && (inputGeneList == ""))) {
@@ -185,7 +185,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
         arrange(expr) -> merged.tbl
     ## plot object
     merged.tbl %>% ggplot() +
-      aes(x=!!sym(cxName), y=!!sym(cyName), colour=(log1p(expr)/log1p(2))) +
+      aes(x=!!sym(cxName), y=!!sym(cyName), colour=(log2(1+expr))) +
       xlim(rangeX[1], rangeX[2]) +
       ylim(rangeY[1], rangeY[2]) +
       lims(colour=c(0, maxExpr)) +
@@ -217,8 +217,8 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
-  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
-  
+  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
+
   clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
   conds <- as.character(unlist(seuratObj[[values$conditionVariable]]));
   
@@ -267,7 +267,7 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
     group_by(cell.identity, gene) %>%
     dplyr::summarise(pctExpressed = round(100*sum(count != 0) / n(), 1),
                      logMeanExpr = ifelse(pctExpressed == 0, 0, 
-                                          log1p(mean(count[count > 0])) / log1p(2)),
+                                          log2(1+mean(count[count > 0]))),
                      .groups = "keep") -> dotplot.data
   # Draw dotplot graph
   dotplot.data %>%
@@ -299,7 +299,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
-  maxExpr <- ceiling(log1p(max(rowMeans(seuratObj[["RNA"]]@counts))) / log1p(2));
+  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
   doViridis <- (inputOpts$colour_scale == "Viridis");
   
   clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
@@ -359,7 +359,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
     ## convert to long format for easier data manipulation
     pivot_longer(cols = !starts_with("gene"), names_to = "cellID", values_to = "count") %>%
     ## change counts to log2-ish data values
-    mutate(logCount = ifelse(count == 0, 0, log1p(count) / log1p(2))) %>%
+    mutate(logCount = ifelse(count == 0, 0, log2(1+count))) %>%
     ## clip to scale limit
     mutate(logCountBreak = 
              round(255 * ifelse(logCount > maxExpr,
