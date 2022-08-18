@@ -271,25 +271,28 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
     dplyr::summarise(pctExpressed = round(100*sum(count != 0) / n(), 1),
                      logMeanExpr = ifelse(pctExpressed == 0, 0, 
                                           log2(1+mean(count[count > 0]))),
-                     .groups = "keep") -> dotplot.data
+                     meanExpr = mean(count[count > 0]),
+                     .groups = "keep") %>%
+    ungroup() %>%
+    mutate(relMeanExpr=meanExpr / max(meanExpr)) -> dotplot.data
   # Draw dotplot graph
   dotplot.data %>%
     ggplot() +
-    aes(x=gene, y=cell.identity, size=pctExpressed, colour=logMeanExpr) +
+    aes(x=gene, y=cell.identity, size=pctExpressed, colour=relMeanExpr) +
     geom_point() +
-    lims(size=c(0,100), colour=c(0, maxExpr)) +
+    lims(size=c(0,100), colour=c(0, 1)) +
     scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
     xlab("Feature") +
     ylab("Cluster") +
     theme_cowplot() +
-    guides(size=guide_legend(title = "% Expressed"),
-           colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
+    guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
+           colour=guide_colourbar(title = expression(atop(Normalised,Expression)))) +
     theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
   if(inputOpts$colour_scale == "Viridis"){
-    res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
+    res <- res + scale_colour_viridis(limits=c(0,1), na.value=maxViridis);
   } else {
     res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
-                                       limits=c(0,maxExpr), na.value="#e31837");
+                                       limits=c(0,1), na.value="#e31837");
   }
   return(res);
 }
