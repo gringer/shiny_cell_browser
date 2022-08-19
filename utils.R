@@ -271,11 +271,12 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
     dplyr::summarise(pctExpressed = round(100*sum(count != 0) / n(), 1),
                      logMeanExpr = ifelse(pctExpressed == 0, 0, 
                                           log2(1+mean(count[count > 0]))),
-                     meanExpr = mean(count[count > 0]),
+                     meanExpr = ifelse(count == 0, 0, 
+                                       mean(count[count > 0]) * pctExpressed/100),
                      .groups = "keep") %>%
     ungroup() %>%
     group_by(cell.identity) %>%
-    mutate(relMeanExpr=meanExpr / max(meanExpr, na.rm = TRUE)) -> dotplot.data;
+    mutate(relMeanExpr=meanExpr / max(meanExpr)) -> dotplot.data;
   # Draw dotplot graph
   dotplot.data %>%
     ggplot() +
