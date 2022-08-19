@@ -267,33 +267,40 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
                  names_to = "gene", values_to = "count") %>%
     mutate(gene = factor(gene, levels=inputGeneList)) %>%
     group_by(cell.identity, gene) %>%
-    dplyr::summarise(pctExpressed = round(100*sum(count != 0) / n(), 1),
+    dplyr::summarise(pctExpressed = ifelse(sum(count) == 0, NA,
+                                           round(100*sum(count != 0) / n(), 1)),
                      logMeanExpr = log2(1 + sum(count) / n()),
                      meanExpr = sum(count) / n(),
                      .groups = "keep") %>%
     ungroup() %>%
-    group_by(cell.identity) %>%
-    mutate(relMeanExpr=ifelse(max(meanExpr) == 0, 0, meanExpr / max(meanExpr))) -> dotplot.data;
+    group_by(gene) %>%
+    mutate(maxMeanExpr=max(meanExpr),
+           relMeanExpr=ifelse(maxMeanExpr == 0, 0, meanExpr / maxMeanExpr)) -> dotplot.data;
   ## Determine maximum RNA expression for scale (post-filtering)
   maxExpr <- max(dotplot.data$logMeanExpr);
   # Draw dotplot graph
   dotplot.data %>%
     ggplot() +
-    aes(x=gene, y=cell.identity, size=pctExpressed, colour=logMeanExpr) +
-    geom_point() +
-    lims(size=c(0,100), colour=c(0, maxExpr)) +
+    aes(x=gene, y=cell.identity, size=pctExpressed, colour=relMeanExpr) +
+    geom_point(na.rm=TRUE) +
+    lims(size=c(0,100)) +
+    #lims(size=c(0,100), colour=c(0, maxExpr)) +
     scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
     xlab("Feature") +
     ylab("Cluster") +
     theme_cowplot() +
+    #guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
+    #       colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
     guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
-           colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
+           colour=guide_colourbar(title = expression(atop(Normalised,Expression)))) +
     theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
   if(inputOpts$colour_scale == "Viridis"){
-    res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
+    res <- res + scale_colour_viridis(limits=c(0, 1));
+    #res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
   } else {
-    res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
-                                       limits=c(0,maxExpr), na.value="#e31837");
+    res <- res + scale_colour_gradient(low="lightgrey", high="#e31837", limits=c(0,1));
+    #res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
+    #                                   limits=c(0,maxExpr), na.value="#e31837");
   }
   return(res);
 }

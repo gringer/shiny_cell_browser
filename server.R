@@ -176,7 +176,7 @@ server <- function(input, output, session) {
   values$clusterConds <- ""
   updateSelectInput(session, "selected_dataset", choices = dataset_names, selected = dataset_names[[1]])
   
-  genes_debounced <- debounce(reactive(input$selected_gene), 3000);
+  genes_debounced <- debounce(reactive(input$selected_gene), 4000);
 
   #Updates dataset index on selection and updates gene list
   current_dataset_index <- eventReactive({ input$selected_dataset }, {
@@ -205,7 +205,7 @@ server <- function(input, output, session) {
                ignoreNULL = TRUE, ignoreInit = TRUE)
 
   #Update expression plot from selectize input
-  observeEvent({ input$selected_gene }, {
+  observeEvent({ genes_debounced() }, {
     values$selectedGene <- input$selected_gene
     logging::loginfo("Gene selection from text input: %s", input$selected_gene)
   },
