@@ -274,7 +274,8 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
                      meanExpr = mean(count[count > 0]),
                      .groups = "keep") %>%
     ungroup() %>%
-    mutate(relMeanExpr=meanExpr / max(meanExpr)) -> dotplot.data
+    group_by(cell.identity) %>%
+    mutate(relMeanExpr=meanExpr / max(meanExpr)) -> dotplot.data;
   # Draw dotplot graph
   dotplot.data %>%
     ggplot() +
@@ -289,10 +290,10 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
            colour=guide_colourbar(title = expression(atop(Normalised,Expression)))) +
     theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
   if(inputOpts$colour_scale == "Viridis"){
-    res <- res + scale_colour_viridis(limits=c(0,1), na.value=maxViridis);
+    res <- res + scale_colour_viridis(limits=c(0,1));
   } else {
     res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
-                                       limits=c(0,1), na.value="#e31837");
+                                       limits=c(0,1));
   }
   return(res);
 }
