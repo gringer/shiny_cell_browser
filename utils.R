@@ -218,8 +218,6 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
 
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
-  ## Determine maximum RNA expression (pre-filtering)
-  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
   maxViridis <- viridis(100)[100];
 
   clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
@@ -253,6 +251,7 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
     idLevels <- outer(levels(clusters), levels(conds), paste, sep="_");
     cell.identities <- factor(paste(clusters, conds, sep="_"), levels=idLevels);
   }
+  nCells <- ncol(seuratObj);
   ## Create table linking cells to conditions
   tibble(cellID = colnames(seuratObj),
          cell.identity = cell.identities) -> cell.type.tbl
@@ -269,32 +268,32 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
     mutate(gene = factor(gene, levels=inputGeneList)) %>%
     group_by(cell.identity, gene) %>%
     dplyr::summarise(pctExpressed = round(100*sum(count != 0) / n(), 1),
-                     logMeanExpr = ifelse(pctExpressed == 0, 0, 
-                                          log2(1+mean(count[count > 0]))),
-                     meanExpr = ifelse(count == 0, 0, 
-                                       mean(count[count > 0]) * pctExpressed/100),
+                     logMeanExpr = log2(1 + sum(count) / n()),
+                     meanExpr = sum(count) / n(),
                      .groups = "keep") %>%
     ungroup() %>%
     group_by(cell.identity) %>%
-    mutate(relMeanExpr=meanExpr / max(meanExpr)) -> dotplot.data;
+    mutate(relMeanExpr=ifelse(max(meanExpr) == 0, 0, meanExpr / max(meanExpr))) -> dotplot.data;
+  ## Determine maximum RNA expression for scale (post-filtering)
+  maxExpr <- max(dotplot.data$logMeanExpr);
   # Draw dotplot graph
   dotplot.data %>%
     ggplot() +
-    aes(x=gene, y=cell.identity, size=pctExpressed, colour=relMeanExpr) +
+    aes(x=gene, y=cell.identity, size=pctExpressed, colour=logMeanExpr) +
     geom_point() +
-    lims(size=c(0,100), colour=c(0, 1)) +
+    lims(size=c(0,100), colour=c(0, maxExpr)) +
     scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
     xlab("Feature") +
     ylab("Cluster") +
     theme_cowplot() +
     guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
-           colour=guide_colourbar(title = expression(atop(Normalised,Expression)))) +
+           colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
     theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
   if(inputOpts$colour_scale == "Viridis"){
-    res <- res + scale_colour_viridis(limits=c(0,1));
+    res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
   } else {
     res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
-                                       limits=c(0,1));
+                                       limits=c(0,maxExpr), na.value="#e31837");
   }
   return(res);
 }
