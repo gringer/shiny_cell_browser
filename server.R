@@ -175,6 +175,8 @@ server <- function(input, output, session) {
   values$dataConds <- ""
   values$clusterConds <- ""
   updateSelectInput(session, "selected_dataset", choices = dataset_names, selected = dataset_names[[1]])
+  
+  genes_debounced <- debounce(reactive(input$selected_gene), 3000);
 
   #Updates dataset index on selection and updates gene list
   current_dataset_index <- eventReactive({ input$selected_dataset }, {
@@ -265,13 +267,13 @@ server <- function(input, output, session) {
     GetClusterPlot(data_list, current_dataset_index(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$expression_plot <- renderPlot({
-    GetExpressionPlot(data_list, current_dataset_index(), input$selected_gene, input, values)
+    GetExpressionPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$dot_plot <- renderPlot({
-    GetDotPlot(data_list, current_dataset_index(), input$selected_gene, input, values)
+    GetDotPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$heatmap_plot <- renderPlot({
-    GetHeatmapPlot(data_list, current_dataset_index(), input$selected_gene, input, values)
+    GetHeatmapPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   
   ## Metadata description
