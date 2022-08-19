@@ -275,7 +275,7 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
                      .groups = "keep") %>%
     ungroup() %>%
     group_by(cell.identity) %>%
-    mutate(relMeanExpr=meanExpr / max(meanExpr)) -> dotplot.data;
+    mutate(relMeanExpr=meanExpr / max(meanExpr, na.rm = TRUE)) -> dotplot.data;
   # Draw dotplot graph
   dotplot.data %>%
     ggplot() +
