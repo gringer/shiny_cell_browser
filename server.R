@@ -24,6 +24,12 @@ dataset_names <- sapply(json_data, function(x) x$name)
 dataset_selector <- as.list(c(datasets))
 names(dataset_selector) <- c(dataset_names)
 
+logMessage <- function(...){
+  outFileName <- sprintf("appLog_%s.txt", Sys.Date());
+  cat(format(Sys.time()), " ", sprintf(...), "\n", sep="", file=outFileName, append=TRUE);
+  logging::loginfo(...);
+}
+
 #Use only the first dataset in the config file
 dataset_name = dataset_names[[1]]
 dataset = datasets[[1]]
@@ -162,12 +168,13 @@ read_data <- function(x) {
     ))
 }
 
-logging::loginfo("loading data...")
+logMessage("loading data...")
 data_list <- lapply(json_data, read_data)
-logging::loginfo("all data loaded.")
+logMessage("all data loaded.")
 
 server <- function(input, output, session) {
-
+  ## Save system message outputs (i.e. STDERR) to a log file based on the App start time
+  
   values <- reactiveValues()
   values$selectedGenes <- ""
   values$selectedCluster <- ""
@@ -180,6 +187,7 @@ server <- function(input, output, session) {
 
   #Updates dataset index on selection and updates gene list
   current_dataset_index <- eventReactive({ input$selected_dataset }, {
+    logMessage("Changing dataset to '%s'", input$selected_dataset);
     current_index <- dataset_selector[[input$selected_dataset]]
     return(current_index)
   }, ignoreInit = TRUE, ignoreNULL = TRUE)
@@ -200,14 +208,14 @@ server <- function(input, output, session) {
 
   #Logging
   observeEvent({ input$client }, {
-    logging::loginfo("New client with ip: %s", input$client$ip)
+    logMessage("New client with ip: %s", input$client$ip)
   },
-               ignoreNULL = TRUE, ignoreInit = TRUE)
+               ignoreNULL = TRUE)
 
   #Update expression plot from selectize input
   observeEvent({ genes_debounced() }, {
     values$selectedGene <- input$selected_gene
-    logging::loginfo("Gene selection from text input: %s", input$selected_gene)
+    logMessage("Gene selection from text input: %s", input$selected_gene)
   },
                ignoreNULL = TRUE, ignoreInit = TRUE)
   
@@ -368,6 +376,7 @@ server <- function(input, output, session) {
       }
     },
     content = function(file) {
+      logMessage("Saving %s to file", input$tabPanel);
       if(input$tabPanel == "Condition DE"){
         organoid()$DE_condition_data %>%
           write_csv(file)
