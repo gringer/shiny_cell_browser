@@ -12,7 +12,6 @@ library(varhandle)
 library(rlist)
 library(shinythemes)
 library(viridisLite)
-library(logging)
 library(svglite)
 source("utils.R")
 
@@ -25,9 +24,9 @@ dataset_selector <- as.list(c(datasets))
 names(dataset_selector) <- c(dataset_names)
 
 logMessage <- function(...){
-  outFileName <- sprintf("appLog_%s.txt", Sys.Date());
+  outFileName <- sprintf("logs/appLog_%s.txt", Sys.Date());
   cat(format(Sys.time()), " ", sprintf(...), "\n", sep="", file=outFileName, append=TRUE);
-  logging::loginfo(...);
+  cat(format(Sys.time()), " ", sprintf(...), "\n", sep="");
 }
 
 #Use only the first dataset in the config file
