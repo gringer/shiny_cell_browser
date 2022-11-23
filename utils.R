@@ -304,6 +304,7 @@ GetDotPlotData <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
                                            round(100*sum(count != 0) / n(), 1)),
                      logMeanExpr = log2(1 + sum(count) / n()),
                      meanExpr = sum(count) / n(),
+                     sdExpr = ifelse(n() < 3, NA, sd(count, na.rm=TRUE)),
                      .groups = "keep") %>%
     ungroup() %>%
     group_by(gene) %>%
