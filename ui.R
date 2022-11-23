@@ -74,6 +74,8 @@ ui <- fluidPage(
                                                                  plotOutput(outputId = "heatmap_plot", inline = TRUE)),
                                                         tabPanel("Dot Plot",
                                                                  plotOutput(outputId = "dot_plot", inline = TRUE)),
+                                                        tabPanel("Dot Plot Table",
+                                                                 DTOutput("DotPlot_table")),
                                                         tabPanel("Condition DE",
                                                                  DTOutput('DE_condition_table')),
                                                         tabPanel("Cluster DE",

@@ -211,14 +211,47 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
 }
 
 GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
+  dotplot.data <- GetDotPlotData(inputDataList, inputDataIndex, inputGeneList, inputOpts, values);
+  if(is.null(dotplot.data)){
+    return(NULL);
+  }
+  ## Determine maximum RNA expression for scale (post-filtering)
+  maxExpr <- max(dotplot.data$logMeanExpr);
+  # Draw dotplot graph
+  dotplot.data %>%
+    ggplot() +
+    aes(x=gene, y=cell.identity, size=pctExpressed, colour=relMeanExpr) +
+    geom_point(na.rm=TRUE) +
+    lims(size=c(0,100)) +
+    #lims(size=c(0,100), colour=c(0, maxExpr)) +
+    scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
+    xlab("Feature") +
+    ylab("Cluster") +
+    theme_cowplot() +
+    #guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
+    #       colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
+    guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
+           colour=guide_colourbar(title = expression(atop(Normalised,Expression)))) +
+    theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
+  if(inputOpts$colour_scale == "Viridis"){
+    res <- res + scale_colour_viridis(limits=c(0, 1));
+    #res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
+  } else {
+    res <- res + scale_colour_gradient(low="lightgrey", high="#e31837", limits=c(0,1));
+    #res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
+    #                                   limits=c(0,maxExpr), na.value="#e31837");
+  }
+  return(res);
+}
 
+GetDotPlotData <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
+  
   if (length(inputGeneList) == 0) {
     return(NULL)
   }
-
+  
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
-  maxViridis <- viridis(100)[100];
 
   clusters <- as.character(unlist(seuratObj[["X__cluster"]]));
   conds <- as.character(unlist(seuratObj[[values$conditionVariable]]));
@@ -276,34 +309,9 @@ GetDotPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
     group_by(gene) %>%
     mutate(maxMeanExpr=max(meanExpr),
            relMeanExpr=ifelse(maxMeanExpr == 0, 0, meanExpr / maxMeanExpr)) -> dotplot.data;
-  ## Determine maximum RNA expression for scale (post-filtering)
-  maxExpr <- max(dotplot.data$logMeanExpr);
-  # Draw dotplot graph
-  dotplot.data %>%
-    ggplot() +
-    aes(x=gene, y=cell.identity, size=pctExpressed, colour=relMeanExpr) +
-    geom_point(na.rm=TRUE) +
-    lims(size=c(0,100)) +
-    #lims(size=c(0,100), colour=c(0, maxExpr)) +
-    scale_x_discrete(labels=function(x){sub("-ENSM.*", "", x)}) +
-    xlab("Feature") +
-    ylab("Cluster") +
-    theme_cowplot() +
-    #guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
-    #       colour=guide_colourbar(title = expression(atop(log[2]~Mean,Expression)))) +
-    guides(size=guide_legend(title = expression(atop(Percent, Expressed))),
-           colour=guide_colourbar(title = expression(atop(Normalised,Expression)))) +
-    theme(axis.text.x=element_text(angle = 45, hjust=1)) -> res
-  if(inputOpts$colour_scale == "Viridis"){
-    res <- res + scale_colour_viridis(limits=c(0, 1));
-    #res <- res + scale_colour_viridis(limits=c(0,maxExpr), na.value=maxViridis);
-  } else {
-    res <- res + scale_colour_gradient(low="lightgrey", high="#e31837", limits=c(0,1));
-    #res <- res + scale_colour_gradient(low="lightgrey", high="#e31837",
-    #                                   limits=c(0,maxExpr), na.value="#e31837");
-  }
-  return(res);
+  return(dotplot.data);
 }
+
 
 GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
 

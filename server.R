@@ -315,6 +315,16 @@ server <- function(input, output, session) {
     return(sprintf("Genes differentially expressed in %s", baseString))
   })
   
+  output$DotPlot_table <- DT::renderDT({
+    GetDotPlotData(data_list, current_dataset_index(),
+                   genes_debounced(), input, values) -> out.data;
+    if(is.null(out.data)){
+      NULL;
+    } else {
+      datatable(out.data);
+    }
+  });
+  
   output$cluster_count_table <- DT::renderDT({
     cluster <- factor(Idents(organoid()$seurat_data))
     cluster <- factor(cluster, levels = sort(levels(cluster)));
@@ -368,7 +378,7 @@ server <- function(input, output, session) {
   output$save_file <- downloadHandler(
     filename = function() {
       tabName <- gsub(" ", "_", input$tabPanel)
-      if(input$tabPanel %in% c("Cluster DE", "Condition DE", "Cluster Counts")){
+      if(input$tabPanel %in% c("Cluster DE", "Condition DE", "Cluster Counts", "Dot Plot Table")){
         paste0(format.Date(Sys.time(), "%Y-%m-%d_%H%M%S_"), tabName, ".csv")
       } else {
         paste0(format.Date(Sys.time(), "%Y-%m-%d_%H%M%S_"), tabName, ".", input$image_type)
@@ -387,6 +397,11 @@ server <- function(input, output, session) {
         condition <- unlist(organoid()$seurat_data[[organoid()$condition]])
         as_tibble(as.matrix(table(cluster, condition))) %>%
           pivot_wider(names_from="condition", values_from="n") %>%
+          write_csv(file)
+      } else if(input$tabPanel == "Dot Plot Table"){
+        GetDotPlotData(data_list, current_dataset_index(),
+                       genes_debounced(), input, values) %>%
+          mutate(across(where(is.numeric), signif, 4)) %>%
           write_csv(file)
       } else {
         if(input$tabPanel == "Dot Plot"){
