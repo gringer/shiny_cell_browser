@@ -16,6 +16,7 @@ Interactive visualization of single cell RNAseq datasets.
     - Store Seurat data objects as `.rds` files. Application loading time can be improved by creating a temporary copy removing transformed data prior to saving the data object, e.g.:
     ```
     sc.forApp <- sc
+    DefaultAssay(sc.forApp) <- "RNA"
     sc.forApp[["integrated"]] <- NULL
     saveRDS(sc.forApp, "fileToSave.rds")
     ```
