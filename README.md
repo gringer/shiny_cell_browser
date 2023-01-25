@@ -13,7 +13,7 @@ Interactive visualization of single cell RNAseq datasets.
   - The main branch currently supports Seurat v3 and Seurat v4 (not v2).
   - Install dependencies as listed [below](#dependencies).
   - Prepare data
-    - Store Seurat data objects as `.rds` files. Application loading time can be improved by creating a temporary copy removing unnecessary data prior to saving the data object, e.g. via [`DietSeurat`](https://github.com/satijalab/seurat/issues/3892#issuecomment-756923135):
+    - Store Seurat data objects as `.rds` files. Application loading time can be improved by creating a temporary copy and removing unnecessary data prior to saving the data object, e.g. via [`DietSeurat`](https://github.com/satijalab/seurat/issues/3892#issuecomment-756923135):
     ```
     sc.forApp <- sc
     DefaultAssay(sc.forApp) <- "RNA"
