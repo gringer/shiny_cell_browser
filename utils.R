@@ -124,6 +124,92 @@ GetPlotData <- function(inputDataObj, inputGene) {
   }
 }
 
+GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
+  
+  inputDataObj <- inputDataList[[inputDataIndex]]
+  seuratObj <- inputDataObj$seurat_data
+  ## Determine maximum RNA expression (pre-filtering)
+  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts, na.rm = TRUE))));
+  maxViridis <- viridis(100)[100];
+  
+  #On initialization, check to make sure exactly 2 valid genes have been selected
+  if ((length(inputGeneList) == 0) || ((length(inputGeneList) == 1) && (inputGeneList == "")) || (length(inputGeneList) != 2)) {
+    return(NULL)
+  }
+  ## Fetch expression data
+  GetAssayData(seuratObj, slot="counts", assay="RNA")[inputGeneList,, drop=FALSE] %>%
+    data.frame() %>%
+    rownames_to_column("feature") %>%
+    as_tibble() %>%
+    mutate(feature = factor(feature, levels=inputGeneList)) %>%
+    pivot_longer(cols = -1, names_to="cell", values_to="expr") %>%
+    mutate(expr = log10(1 + expr)) %>%
+    pivot_wider(names_from="feature", values_from="expr") -> feature.tbl;
+  ## Fetch Cell annotations
+  Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
+    data.frame() %>%
+    rownames_to_column("cell") %>%
+    as_tibble() %>%
+    mutate(cell=gsub("-", ".", cell) %>% gsub("^([0-9])","X\\1", .),
+           cluster=factor(unlist(seuratObj[["X__cluster"]])),
+           condition=factor(unlist(seuratObj[[values$conditionVariable]]))) -> cell.tbl;
+  ## identify gene names
+  cxName <- inputGeneList[1];
+  cyName <- inputGeneList[2];
+  rangeX <- range(feature.tbl[,2], na.rm = TRUE);
+  rangeY <- range(feature.tbl[,3], na.rm = TRUE);
+  ## create cell groups
+  cell.tbl$group = "1";
+  ## filter cluster / cell type at cell level
+  if(length(inputOpts$selected_cluster) > 0){
+    cell.tbl <- filter(cell.tbl, cluster %in% inputOpts$selected_cluster);
+    cell.tbl$cluster <- factor(cell.tbl$cluster, levels=inputOpts$selected_cluster);
+    cell.tbl$group <- cell.tbl$cluster;
+  }
+  if((length(inputOpts$selected_ctype) > 0) | (inputOpts$splitByCondition)){
+    if(length(inputOpts$selected_ctype) > 0) {
+      cell.tbl <- filter(cell.tbl, condition %in% inputOpts$selected_ctype);
+      cell.tbl$condition <- factor(cell.tbl$condition, levels=inputOpts$selected_ctype);
+    }
+    if(length(inputOpts$selected_cluster) > 0){
+      clusterCondLevels <- outer(levels(cell.tbl$cluster),
+                                 levels(cell.tbl$condition),
+                                 paste, sep="_");
+      cell.tbl$group <- factor(paste(cell.tbl$cluster, cell.tbl$condition, sep="_"),
+                               levels=clusterCondLevels);
+    } else {
+      cell.tbl$group <- cell.tbl$condition;
+    }
+  }
+  ## merge expression + cell data
+  cell.tbl %>%
+    left_join(feature.tbl, by="cell") -> merged.tbl
+  ## plot object
+  merged.tbl %>% ggplot() +
+    aes(x=!!sym(cxName), y=!!sym(cyName), colour=group) +
+    xlim(rangeX[1], rangeX[2]) +
+    ylim(rangeY[1], rangeY[2]) +
+    geom_point(position="jitter") +
+    theme_cowplot() +
+    guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
+    theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+  if((length(inputOpts$selected_cluster) > 1) | (length(inputOpts$selected_ctype) > 1) |
+     inputOpts$splitByCondition){
+    res <- res + facet_wrap(~ group);
+  }
+  ## update dot colours
+  if(inputOpts$colour_scale == "Viridis"){
+    res <- res + scale_colour_viridis_d(limits=c(0,maxExpr), na.value=maxViridis);
+  } else {
+    res <- res +
+      scale_colour_discrete(c("lightgrey","#e31837")) +
+      guides(colour="none");
+  }
+  return(res);
+}
+
+
+
 GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
 
     inputDataObj <- inputDataList[[inputDataIndex]]

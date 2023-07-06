@@ -273,6 +273,9 @@ server <- function(input, output, session) {
   output$cluster_plot <- renderPlot({
     GetClusterPlot(data_list, current_dataset_index(), input, values)
   }, width=plot_window_width, height=plot_window_height)
+  output$bi_plot <- renderPlot({
+    GetBiPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
+  }, width=plot_window_width, height=plot_window_height)
   output$expression_plot <- renderPlot({
     GetExpressionPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
@@ -409,6 +412,9 @@ server <- function(input, output, session) {
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Heat Map"){
           GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+        } else if(input$tabPanel == "Bi Plot"){
+          GetBiPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Expression Plot"){
             GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input, values)

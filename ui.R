@@ -70,6 +70,8 @@ ui <- fluidPage(
                                                                  plotOutput(outputId = "cluster_plot", inline = TRUE)),
                                                         tabPanel("Expression Plot",
                                                                  plotOutput(outputId = "expression_plot", inline = TRUE)),
+                                                        tabPanel("Bi Plot",
+                                                                 plotOutput(outputId = "bi_plot", inline = TRUE)),
                                                         tabPanel("Heat Map",
                                                                  plotOutput(outputId = "heatmap_plot", inline = TRUE)),
                                                         tabPanel("Dot Plot",
