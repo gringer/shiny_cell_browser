@@ -10,7 +10,7 @@ library(cowplot)
 
 ##Helper calculation and data functions
 
-#All plots were desigend around a width of 330 pixels, so we scale around that for different screen sizes
+#All plots were designed around a width of 330 pixels, so we scale around that for different screen sizes
 scaleRatio <- function(inputWidth) {
   return(inputWidth / 330)
 }
