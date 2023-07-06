@@ -129,7 +129,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     inputDataObj <- inputDataList[[inputDataIndex]]
     seuratObj <- inputDataObj$seurat_data
     ## Determine maximum RNA expression (pre-filtering)
-    maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
+    maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts, na.rm = TRUE))));
     maxViridis <- viridis(100)[100];
 
     #On initialization, check to make sure a valid gene has been selected
@@ -146,17 +146,17 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     colnames(feature.tbl) <- sub("-ENS.*$", "", colnames(feature.tbl));
     ## Fetch dimensional reduction
     Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
-        data.frame() %>%
+      data.frame() %>%
         rownames_to_column("cell") %>%
         as_tibble() %>%
-        mutate(cell=gsub("-", ".", cell),
+        mutate(cell=gsub("-", ".", cell) %>% gsub("^([0-9])","X\\1", .),
                cluster=factor(unlist(seuratObj[["X__cluster"]])),
                condition=factor(unlist(seuratObj[[values$conditionVariable]]))) -> cell.tbl;
     ## identify reduction names
     cxName <- colnames(cell.tbl)[2];
     cyName <- colnames(cell.tbl)[3];
-    rangeX <- range(cell.tbl[,2]);
-    rangeY <- range(cell.tbl[,3]);
+    rangeX <- range(cell.tbl[,2], na.rm = TRUE);
+    rangeY <- range(cell.tbl[,3], na.rm = TRUE);
     ## create cell groups
     cell.tbl$group = "1";
     ## filter cluster / cell type at cell level
@@ -302,13 +302,13 @@ GetDotPlotData <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
     group_by(cell.identity, gene) %>%
     dplyr::summarise(pctExpressed = ifelse(sum(count) == 0, NA,
                                            round(100*sum(count != 0) / n(), 1)),
-                     logMeanExpr = log2(1 + sum(count) / n()),
-                     meanExpr = sum(count) / n(),
+                     logMeanExpr = log2(1 + sum(count, na.rm = TRUE) / n()),
+                     meanExpr = sum(count, na.rm = TRUE) / n(),
                      sdExpr = ifelse(n() < 3, NA, sd(count, na.rm=TRUE)),
                      .groups = "keep") %>%
     ungroup() %>%
     group_by(gene) %>%
-    mutate(maxMeanExpr=max(meanExpr),
+    mutate(maxMeanExpr=max(meanExpr, na.rm = TRUE),
            relMeanExpr=ifelse(maxMeanExpr == 0, 0, meanExpr / maxMeanExpr)) -> dotplot.data;
   return(dotplot.data);
 }
@@ -323,7 +323,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
-  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts))));
+  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts, na.rm=TRUE))));
   maxViridis <- viridis(100)[100];
   doViridis <- (inputOpts$colour_scale == "Viridis");
   
