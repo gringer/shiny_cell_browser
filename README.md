@@ -17,7 +17,7 @@ Interactive visualization of single cell RNAseq datasets.
     ```
     sc.forApp <- sc
     DefaultAssay(sc.forApp) <- "RNA"
-    sc.forApp <- DietSeurat(sc.forApp, dimreducs = "umap")
+    sc.forApp <- DietSeurat(sc.forApp, dimreducs = "umap", assays="RNA")
     saveRDS(sc.forApp, "fileToSave.rds")
     ```
     - Store marker gene differential expression table in `.csv` files (column names must contain `gene` and `cluster`).
