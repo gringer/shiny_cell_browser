@@ -301,7 +301,7 @@ server <- function(input, output, session) {
 
   #Clear memory and reload metadata from configuration file
   observeEvent(eventExpr = { input$reload_config }, handlerExpr = {
-    reloadConfig(session=session);
+    reloadConfigSession();
   })
   
   #Set the selectedCluster field to nothing when the the dataset is changed 
