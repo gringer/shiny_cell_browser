@@ -1,0 +1,46 @@
+Bootstrap: docker
+
+From: rocker/shiny-verse:latest
+
+%post
+  apt-get update && apt-get install -y \
+  libxml2-dev libhdf5-dev \
+  libcurl4-openssl-dev \
+  libgeos-dev \
+  libssl-dev \
+  libigraph0-dev \
+  libigraph0v5 \
+  libfontconfig1-dev \
+  less \
+  htop \
+  aptitude \
+  strace
+
+  R -e 'install.packages(c("xml2", "openssl", "rjson"))'
+  R -e 'install.packages(c("SeuratObject", "Seurat"))'
+  R -e 'install.packages(c("shinydashboard"))'
+  R -e 'install.packages(c("DT"))'
+  R -e 'install.packages(c("varhandle"))'
+  R -e 'install.packages(c("shinyjs"))'
+  R -e 'install.packages(c("rlist"))'
+  R -e 'install.packages(c("shinythemes"))'
+  R -e 'install.packages(c("viridis"))'
+  R -e 'install.packages(c("logging"))'
+  R -e 'install.packages(c("svglite"))'
+  R -e 'install.packages(c("systemfonts"))'
+
+  ln -sf /usr/share/zoneinfo/Pacific/Auckland /etc/localtime
+
+  mkdir -p /app/data
+  mkdir -p /app/logs
+  sudo chown shiny:shiny /app/logs
+
+%files
+  /app/shiny-server.conf /etc/shiny-server/shiny-server.conf
+  ./*                    /app/
+
+%runscript
+  R -e "shiny::runApp('/app', host='0.0.0.0', port=3838)"
+
+%startscript
+  R -e "shiny::runApp('/app', host='0.0.0.0', port=3838)"
