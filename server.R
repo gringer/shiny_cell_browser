@@ -193,7 +193,7 @@ server <- function(input, output, session) {
     names(data_list) <- sapply(data_list, function(x){paste0(x$group,"/",x$name)});
     values$data_list <- data_list;
     logMessage("all metadata loaded.");
-    updateSelectInput(session, "selected_group", choices = dataset_groups, selected = dataset_groups[[1]]);
+    updateSelectInput(session, "selected_group", choices = unique(dataset_groups), selected = dataset_groups[[1]]);
     updateSelectInput(session, "selected_dataset",
                       choices = dataset_names[dataset_groups == dataset_groups[[1]]],
                       selected = dataset_names[[1]]);
