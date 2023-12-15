@@ -16,12 +16,16 @@ library(svglite)
 source("utils.R")
 
 #Start to read in the config file.
-json_file <- rjson::fromJSON(file = './data/config.json')
-json_data <- json_file$data
-datasets <- 1:length(json_data)
-dataset_names <- sapply(json_data, function(x) x$name)
-dataset_selector <- as.list(c(datasets))
-names(dataset_selector) <- c(dataset_names)
+json_file <- rjson::fromJSON(file = './data/config.json');
+json_data <- json_file$data;
+#Read the config data
+config <- json_file$config;
+data_list <- list();
+datasets <- 1:length(json_data);
+dataset_groups <- sapply(json_data, function(x) x$group);
+dataset_names <- sapply(json_data, function(x) x$name);
+dataset_selector <- as.list(c(datasets));
+names(dataset_selector) <- paste0(dataset_groups,"/",dataset_names);
 
 logMessage <- function(...){
   outFileName <- sprintf("logs/appLog_%s.txt", Sys.Date());
@@ -30,11 +34,10 @@ logMessage <- function(...){
 }
 
 #Use only the first dataset in the config file
+dataset_group = dataset_groups[[1]]
 dataset_name = dataset_names[[1]]
 dataset = datasets[[1]]
 
-#Read the config data
-config <- json_file$config
 
 calc_pt_size <- function(n) { 25 / n ^ 0.33 }
 
@@ -48,6 +51,38 @@ GetClusters <- function(object) {
   rownames(clusters) <- NULL
   clusters$cell.name <- as.character(clusters$cell.name)
   return(clusters)
+}
+
+reloadConfig <- function(session=NULL){
+  json_file <<- rjson::fromJSON(file = './data/config.json');
+  json_data <<- json_file$data;
+  #Read the config data
+  config <<- json_file$config;
+  logMessage("loading metadata...");
+  datasets <<- 1:length(json_data);
+  dataset_groups <<- sapply(json_data, function(x) x$group);
+  dataset_names <<- sapply(json_data, function(x) x$name);
+  dataset_selector <<- as.list(c(datasets));
+  names(dataset_selector) <<- paste0(dataset_groups,"/",dataset_names);
+  data_list <<- lapply(json_data, read_metadata);
+  names(data_list) <<- paste0(sapply(data_list, function(x){x$group}),"/",sapply(data_list, function(x){x$name}));
+  logMessage("all metadata loaded.");
+  if(!is.null(session)){
+    updateSelectInput(session, "selected_group", choices = dataset_groups, selected = dataset_groups[[1]]);
+    updateSelectInput(session, "selected_dataset",
+                      choices = dataset_names[dataset_groups == dataset_groups[[1]]],
+                      selected = dataset_names[[1]]);
+  }
+}
+
+read_metadata <- function(x){
+  list(
+    name = x$name,
+    group = x$group,
+    config = x,
+    meta = if(!is.null(x$meta)){ x$meta } else { NULL },
+    loaded = FALSE
+  )  
 }
 
 read_data <- function(x) {
@@ -70,7 +105,8 @@ read_data <- function(x) {
     colors <- turbo(n_distinct(seurat_data@active.ident))
   }
   condition <- x$condition
-  genes <- sort(rownames(GetAssayData(seurat_data, slot="counts", assay="RNA")))
+  geneCounts <- LayerData(seurat_data, layer="counts")
+  genes <- sort(rownames(geneCounts))
   
   ## Identify potentially useful condition names
   condNames <- sapply(names(seurat_data@meta.data), 
@@ -83,7 +119,7 @@ read_data <- function(x) {
   }
 
   #Parser additions
-  full_embedding <- as.data.frame(Embeddings(Reductions(seurat_data, slot=dimEmbedding)))
+  full_embedding <- as.data.frame(Embeddings(seurat_data, reduction=dimEmbedding))
   assign_clust <- as.data.frame(GetClusters(seurat_data))
   colorVec = mapvalues(assign_clust[, 2], from = unique(assign_clust[, 2]), to = toupper(colors))
   df_plot = cbind(full_embedding[,1:2], assign_clust[, 2], colorVec)
@@ -142,13 +178,17 @@ read_data <- function(x) {
   return(
     list(
       name = x$name,
+      group = x$group,
+      config = x,
+      loaded = TRUE,
       seurat_data = seurat_data,
       ncells = ncells,
       pt_size = pt_size,
       font_scale = font_scale,
-      embedding = x$embedding,
+      embedding = dimEmbedding,
       condition = condition,
       colors = colors,
+      geneCounts = geneCounts,
       genes = genes,
       meta = meta,
       condNames = condNames,
@@ -167,9 +207,7 @@ read_data <- function(x) {
     ))
 }
 
-logMessage("loading data...")
-data_list <- lapply(json_data, read_data)
-logMessage("all data loaded.")
+reloadConfig();
 
 server <- function(input, output, session) {
   ## Save system message outputs (i.e. STDERR) to a log file based on the App start time
@@ -180,22 +218,38 @@ server <- function(input, output, session) {
   values$conditionVariable <- ""
   values$dataConds <- ""
   values$clusterConds <- ""
-  updateSelectInput(session, "selected_dataset", choices = dataset_names, selected = dataset_names[[1]])
+  updateSelectInput(session, "selected_group", choices = dataset_groups, selected = dataset_groups[[1]])
+  updateSelectInput(session, "selected_dataset",
+                    choices = dataset_names[dataset_groups == dataset_groups[[1]]],
+                    selected = dataset_names[[1]])
   
   genes_debounced <- debounce(reactive(input$selected_gene), 4000);
 
+  observeEvent({ input$selected_group }, {
+    groupNameChoices <- dataset_names[dataset_groups == input$selected_group];
+    updateSelectInput(session, "selected_dataset",
+                      choices = groupNameChoices,
+                      selected = groupNameChoices[1])
+  })
+
   #Updates dataset index on selection and updates gene list
   current_dataset_index <- eventReactive({ input$selected_dataset }, {
-    logMessage("Changing dataset to '%s'", input$selected_dataset);
-    current_index <- dataset_selector[[input$selected_dataset]]
+    mergedName <- paste0(input$selected_group, "/", input$selected_dataset);
+    logMessage("Changing dataset to '%s'", mergedName);
+    current_index <- dataset_selector[[mergedName]];
+    if(data_list[[current_index]]$loaded == FALSE){
+      logMessage("Loading dataset '%s' from RDS file...", mergedName);
+      data_list[[current_index]] <<- read_data(data_list[[current_index]]$config);
+      logMessage("Finished loading dataset '%s' from RDS file", mergedName);
+    }
     return(current_index)
   }, ignoreInit = TRUE, ignoreNULL = TRUE)
-
+  
   #Return current organoid and update values
   organoid <- eventReactive({ current_dataset_index() }, {
     return(data_list[[current_dataset_index()]])
   })
-
+  
   #Update the UI elements on change
   observeEvent({ organoid() }, {
     updateSelectizeInput(session, 'selected_gene', choices = organoid()$genes, server = TRUE)
@@ -259,6 +313,11 @@ server <- function(input, output, session) {
     values$selectedCluster <- ""
   })
 
+  #Clear memory and reload metadata from configuration file
+  observeEvent(eventExpr = { input$reload_config }, handlerExpr = {
+    reloadConfig(session=session);
+  })
+  
   #Set the selectedCluster field to nothing when the the dataset is changed 
   observeEvent(eventExpr = { current_dataset_index() }, handlerExpr = {
     values$selectedCluster <- ""
@@ -378,6 +437,7 @@ server <- function(input, output, session) {
   },
     server = TRUE
     )
+  
   output$save_file <- downloadHandler(
     filename = function() {
       tabName <- gsub(" ", "_", input$tabPanel)

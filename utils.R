@@ -65,8 +65,8 @@ FetchGenes <- function(
 
 GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
 
-  inputDataObj <- inputDataList[[inputDataIndex]]
-  seuratObj <- inputDataObj$seurat_data
+  inputDataObj <- inputDataList[[inputDataIndex]];
+  seuratObj <- inputDataObj$seurat_data;
   maxViridis <- viridis(100)[100];
   
   ## Subset based on chosen groups
@@ -82,7 +82,6 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
   if(!all(chooseCells)){
     seuratObj <- subset(seuratObj, cells = which(chooseCells));
   }
-  
   ## Fetch dimensional reduction
   Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
     data.frame() %>%
@@ -90,6 +89,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
     as_tibble() %>%
     mutate(cell=gsub("-", ".", cell),
            condition=factor(unlist(seuratObj[[values$conditionVariable]]))) -> cell.tbl;
+  print(str(cell.tbl));
   ## identify reduction names
   cxName <- colnames(cell.tbl)[2];
   cyName <- colnames(cell.tbl)[3];
@@ -129,21 +129,21 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
-  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts, na.rm = TRUE))));
+  maxExpr <- ceiling(log2(1+max(rowMeans(inputDataObj$geneCounts, na.rm = TRUE))));
   maxViridis <- viridis(100)[100];
   
   #On initialization, check to make sure exactly 2 valid genes have been selected
-  if ((length(inputGeneList) == 0) || ((length(inputGeneList) == 1) && (inputGeneList == "")) || (length(inputGeneList) != 2)) {
+  if ((length(inputGeneList) == 0) || 
+      ((length(inputGeneList) == 1) && (inputGeneList == "")) || (length(inputGeneList) != 2)) {
     return(NULL)
   }
   ## Fetch expression data
-  GetAssayData(seuratObj, slot="counts", assay="RNA")[inputGeneList,, drop=FALSE] %>%
+  inputDataObj$geneCounts[inputGeneList,, drop=FALSE] %>%
     data.frame() %>%
     rownames_to_column("feature") %>%
     as_tibble() %>%
     mutate(feature = factor(feature, levels=inputGeneList)) %>%
     pivot_longer(cols = -1, names_to="cell", values_to="expr") %>%
-    mutate(expr = log10(1 + expr)) %>%
     pivot_wider(names_from="feature", values_from="expr") -> feature.tbl;
   ## Fetch Cell annotations
   Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
@@ -185,14 +185,28 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
   cell.tbl %>%
     left_join(feature.tbl, by="cell") -> merged.tbl
   ## plot object
-  merged.tbl %>% ggplot() +
-    aes(x=!!sym(cxName), y=!!sym(cyName), colour=group) +
-    xlim(rangeX[1], rangeX[2]) +
-    ylim(rangeY[1], rangeY[2]) +
-    geom_point(position="jitter") +
-    theme_cowplot() +
-    guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
-    theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+  maxCount <- max(merged.tbl[[cxName]], merged.tbl[[cyName]]);
+  res <- if(maxCount < 30){
+    merged.tbl %>% 
+      group_by(group, !!sym(cxName), !!sym(cyName)) %>%
+      summarise(cellCount = n()) %>%
+      ggplot() +
+      aes(x=!!sym(cxName), y=!!sym(cyName), colour=group, fill=cellCount, label=cellCount) +
+      geom_tile() +
+      geom_text() +
+      scale_fill_viridis() +
+      theme_cowplot() +
+      theme(strip.background = element_blank(), strip.text.x = element_text(face="bold"));
+  } else {
+    merged.tbl %>% ggplot() +
+      aes(x=!!sym(cxName), y=!!sym(cyName), colour=group) +
+      xlim(rangeX[1], rangeX[2]) +
+      ylim(rangeY[1], rangeY[2]) +
+      geom_point(position="jitter") +
+      theme_cowplot() +
+      guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
+      theme(strip.background = element_blank(), strip.text.x = element_text(face="bold"));
+  }
   if((length(inputOpts$selected_cluster) > 1) | (length(inputOpts$selected_ctype) > 1) |
      inputOpts$splitByCondition){
     res <- res + facet_wrap(~ group);
@@ -214,8 +228,9 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
 
     inputDataObj <- inputDataList[[inputDataIndex]]
     seuratObj <- inputDataObj$seurat_data
+    geneCounts <- inputDataObj$geneCounts
     ## Determine maximum RNA expression (pre-filtering)
-    maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts, na.rm = TRUE))));
+    maxExpr <- ceiling(log2(1+max(rowMeans(geneCounts, na.rm = TRUE))));
     maxViridis <- viridis(100)[100];
 
     #On initialization, check to make sure a valid gene has been selected
@@ -223,7 +238,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
       return(NULL)
     }
     ## Fetch expression data
-    GetAssayData(seuratObj, slot="counts", assay="RNA")[inputGeneList,, drop=FALSE] %>%
+    geneCounts[inputGeneList,, drop=FALSE] %>%
         data.frame() %>%
         rownames_to_column("feature") %>%
         as_tibble() %>%
@@ -375,7 +390,7 @@ GetDotPlotData <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   tibble(cellID = colnames(seuratObj),
          cell.identity = cell.identities) -> cell.type.tbl
   ## Create group summary table for DotPlot graph
-  seuratObj[["RNA"]]@counts[inputGeneList, , drop=FALSE] %>%
+  inputDataObj$geneCounts[inputGeneList, , drop=FALSE] %>%
     as.data.frame() %>%
     rownames_to_column("gene") %>%
     as_tibble() %>%
@@ -409,7 +424,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
-  maxExpr <- ceiling(log2(1+max(rowMeans(seuratObj[["RNA"]]@counts, na.rm=TRUE))));
+  maxExpr <- ceiling(log2(1+max(rowMeans(inputDataObj$geneCounts, na.rm=TRUE))));
   maxViridis <- viridis(100)[100];
   doViridis <- (inputOpts$colour_scale == "Viridis");
   
@@ -462,7 +477,7 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
                      gEnd = cumsum(groupPos.rle$lengths),
                      gMid = (gStart + gEnd) / 2);
 
-  seuratObj[["RNA"]]@counts[inputGeneList,,drop=FALSE] %>%
+  inputDataObj$geneCounts[inputGeneList,,drop=FALSE] %>%
     as.data.frame() %>%
     rownames_to_column("gene") %>%
     as_tibble() %>%

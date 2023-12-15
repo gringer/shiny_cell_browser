@@ -5,12 +5,12 @@ Interactive visualization of single cell RNAseq datasets.
 
   - Visualize cluster distribution, marker gene expression, and cluster-averaged expression of lists of genes. 
   - Select or click on a gene to show its expression on t-SNE/UMAP plots, select a cluster to show its marker genes.
-  - Specify pre-analyzed datasets ([Seurat 2 or 3](https://github.com/satijalab/seurat) format) in the JSON config file as data source. Easily switch between differen datasets.
+  - Specify pre-analyzed datasets ([Seurat](https://github.com/satijalab/seurat) format) in the JSON config file as data source. Easily switch between different datasets.
 
 ## Setting up and launch the App
   
   - Download the App, `git clone https://github.com/gringer/shiny_cell_browser.git`.
-  - The main branch currently supports Seurat v3 and Seurat v4 (not v2).
+  - This application supports Seurat v3, v4, and v5 objects.
   - Install dependencies as listed [below](#dependencies).
   - Prepare data
     - Store Seurat data objects as `.rds` files. Application loading time can be improved by creating a temporary copy and removing unnecessary data prior to saving the data object, e.g. via [`DietSeurat`](https://github.com/satijalab/seurat/issues/3892#issuecomment-756923135):
