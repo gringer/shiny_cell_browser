@@ -27,6 +27,7 @@ Interactive visualization of single cell RNAseq datasets.
     - Multiple datasets can be configured in the same browser.
     - The browser-level config includes the browser title and url link
     - The dataset-level config options are listed below:
+      - `group`: the dataset group (for categorising different datasets in the same application).
       - `name`: the dataset name.
       - `file`: the `.rds` file path.
       - `cluster`: the name of the column to use for labelling cell clusters, usually used to describe cell types.
@@ -42,12 +43,12 @@ Interactive visualization of single cell RNAseq datasets.
   - To launch Single Cell Browser locally, run the following code.  
   ```
   cd shiny_cell_browser
-  R -e "shiny::runApp('./', port=1234)
+  R -e "shiny::runApp('./', port=4242)
   ## or store the lunch script in run_app.sh and run the following
   ./run_app.sh 
   ```
-  - This should launch the web browser at `http://127.0.0.1:1234/`. For other computers in the local network to access the web app, run `R -e "shiny::runApp('./', host='0.0.0.0' port=1234)`. Then visit `your-ip-address:1234`.
-  - The App can be deployed on a web server using Docker or [shinyapps.io](https://www.shinyapps.io).
+  - This should launch the web browser at `http://127.0.0.1:4242/`. For other computers in the local network to access the web app, run `R -e "shiny::runApp('./', host='0.0.0.0' port=4242)`. Then visit `your-ip-address:1234`.
+  - The App can be deployed on a web server using Docker, [shinyapps.io](https://www.shinyapps.io), or Singularity (see the recipe files provided for build/running information).
   
 Example `config.json` file: 
 
