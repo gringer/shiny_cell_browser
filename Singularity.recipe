@@ -1,57 +1,21 @@
-Bootstrap: docker
+Bootstrap: localimage
+
+From: ../../singularityImages/shiny-cell-browser-base.simg
 
 ## create this using the following command: singularity build --fakeroot ../../singularityImages/shiny-cell-browser.simg Singularity.recipe
 
-From: rocker/shiny-verse:latest
-
 %post
-  apt-get update && apt-get install -y \
-  libxml2-dev libhdf5-dev \
-  libcurl4-openssl-dev \
-  libgeos-dev \
-  libssl-dev \
-  libigraph0-dev \
-  libigraph0v5 \
-  libfontconfig1-dev \
-  less \
-  htop \
-  aptitude \
-  strace
-
-  install2.r --error --deps TRUE \
-    remotes
-
-  R -e "remotes::install_github('bnprks/BPCells')"
-  R -e "BiocManager::install(c('DelayedArray', 'HDF5Array', 'BPCells'))"
-
-  install2.r --error --deps TRUE \
-    xml2 openssl rjson \
-    SeuratObject \
-    shinydashboard \
-    DT \
-    varhandle \
-    shinyjs \
-    rlist \
-    shinythemes \
-    viridis \
-    logging \
-    svglite \
-    systemfonts
-
-  R -e "BiocManager::install(c('Seurat', 'SeuratObject'))"
-
-  ln -sf /usr/share/zoneinfo/Pacific/Auckland /etc/localtime
-
   mkdir -p /app/data
   mkdir -p /app/logs
-  sudo chown shiny:shiny /app/logs
 
 %files
-  /app/shiny-server.conf /etc/shiny-server/shiny-server.conf
+  ./shiny-server.conf /etc/shiny-server/shiny-server.conf
   .                    /app
 
 %runscript
+  cd /app
   R -e "shiny::runApp('/app', host='0.0.0.0', port=4242)"
 
 %startscript
+  cd /app
   R -e "shiny::runApp('/app', host='0.0.0.0', port=4242)"
