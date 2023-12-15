@@ -1,5 +1,7 @@
 Bootstrap: docker
 
+## create this using the following command: singularity build --fakeroot ../../singularityImages/shiny-cell-browser.simg Singularity.recipe
+
 From: rocker/shiny-verse:latest
 
 %post
@@ -16,18 +18,27 @@ From: rocker/shiny-verse:latest
   aptitude \
   strace
 
-  R -e 'install.packages(c("xml2", "openssl", "rjson"))'
-  R -e 'install.packages(c("SeuratObject", "Seurat"))'
-  R -e 'install.packages(c("shinydashboard"))'
-  R -e 'install.packages(c("DT"))'
-  R -e 'install.packages(c("varhandle"))'
-  R -e 'install.packages(c("shinyjs"))'
-  R -e 'install.packages(c("rlist"))'
-  R -e 'install.packages(c("shinythemes"))'
-  R -e 'install.packages(c("viridis"))'
-  R -e 'install.packages(c("logging"))'
-  R -e 'install.packages(c("svglite"))'
-  R -e 'install.packages(c("systemfonts"))'
+  install2.r --error --deps TRUE \
+    remotes
+
+  R -e "remotes::install_github('bnprks/BPCells')"
+  R -e "BiocManager::install(c('DelayedArray', 'HDF5Array', 'BPCells'))"
+
+  install2.r --error --deps TRUE \
+    xml2 openssl rjson \
+    SeuratObject \
+    shinydashboard \
+    DT \
+    varhandle \
+    shinyjs \
+    rlist \
+    shinythemes \
+    viridis \
+    logging \
+    svglite \
+    systemfonts
+
+  R -e "BiocManager::install(c('Seurat', 'SeuratObject'))"
 
   ln -sf /usr/share/zoneinfo/Pacific/Auckland /etc/localtime
 
