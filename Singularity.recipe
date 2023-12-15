@@ -48,7 +48,7 @@ From: rocker/shiny-verse:latest
 
 %files
   /app/shiny-server.conf /etc/shiny-server/shiny-server.conf
-  ./*                    /app/
+  .                    /app
 
 %runscript
   R -e "shiny::runApp('/app', host='0.0.0.0', port=4242)"
