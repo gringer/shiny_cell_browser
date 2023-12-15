@@ -40,7 +40,7 @@ From: rocker/shiny-verse:latest
   ./*                    /app/
 
 %runscript
-  R -e "shiny::runApp('/app', host='0.0.0.0', port=3838)"
+  R -e "shiny::runApp('/app', host='0.0.0.0', port=4242)"
 
 %startscript
-  R -e "shiny::runApp('/app', host='0.0.0.0', port=3838)"
+  R -e "shiny::runApp('/app', host='0.0.0.0', port=4242)"
