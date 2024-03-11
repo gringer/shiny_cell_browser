@@ -1,4 +1,6 @@
-FROM rocker/shiny-verse:latest
+FROM rocker/shiny-verse:4.3.2
+
+RUN echo "test"
 
 RUN apt-get update && apt-get install -y \
   libxml2-dev libhdf5-dev \
@@ -28,8 +30,7 @@ RUN R -e 'install.packages(c("svglite"))'
 RUN R -e 'install.packages(c("systemfonts"))'
 
 RUN apt-get update -qq && apt-get -y --no-install-recommends install \
-  libigraph0-dev \
-  libigraph0v5
+  libigraph-dev
 
 RUN ln -sf /usr/share/zoneinfo/Pacific/Auckland /etc/localtime
 

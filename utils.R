@@ -37,8 +37,8 @@ get_shared_genes <- function(inputGeneList1, inputGeneList2, topN) {
     return(geneList)
   } else {
     cat("No genes found\n")
-    print(head(gene_list1))
-    print(head(gene_list2))
+    #print(head(gene_list1))
+    #print(head(gene_list2))
     return(NULL)
   }
 }
@@ -89,7 +89,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
     as_tibble() %>%
     mutate(cell=gsub("-", ".", cell),
            condition=factor(unlist(seuratObj[[values$conditionVariable]]))) -> cell.tbl;
-  print(str(cell.tbl));
+  #print(str(cell.tbl));
   ## identify reduction names
   cxName <- colnames(cell.tbl)[2];
   cyName <- colnames(cell.tbl)[3];
@@ -113,7 +113,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
 }
 
 GetPlotData <- function(inputDataObj, inputGene) {
-  print(inputGene)
+  #print(inputGene)
   if(length(inputGene) == 1){
     single_gene <- mutate(inputDataObj$plot_df[, 1:2], 
                           gene = as.numeric(FetchGenes(inputDataObj$seurat_data, inputGene))) %>% arrange(gene)
