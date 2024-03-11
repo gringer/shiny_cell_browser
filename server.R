@@ -93,7 +93,7 @@ read_data <- function(x) {
   ncells <- length(colnames(seurat_data))
   pt_size <- calc_pt_size(ncells)
   if (!is.null(x$pt_size)) {
-    pt_size <- x$pt_size
+    pt_size <- as.numeric(x$pt_size)
   }
   font_scale <- 1
   if (!is.null(x$font_scale)) {
