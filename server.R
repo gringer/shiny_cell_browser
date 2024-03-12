@@ -15,11 +15,29 @@ library(viridisLite)
 library(svglite)
 source("utils.R")
 
+#Start to read in the config file.
+json_file <- rjson::fromJSON(file = './data/config.json');
+json_data <- json_file$data;
+#Read the config data
+config <- json_file$config;
+data_list <- list();
+datasets <- 1:length(json_data);
+dataset_groups <- sapply(json_data, function(x) x$group);
+dataset_names <- sapply(json_data, function(x) x$name);
+dataset_selector <- as.list(c(datasets));
+names(dataset_selector) <- paste0(dataset_groups,"/",dataset_names);
+
 logMessage <- function(...){
-  outFileName <- sprintf("logs/single-cell-browser_appLog_%s.txt", Sys.Date());
+  outFileName <- sprintf("logs/appLog_%s.txt", Sys.Date());
   cat(format(Sys.time()), " ", sprintf(...), "\n", sep="", file=outFileName, append=TRUE);
   cat(format(Sys.time()), " ", sprintf(...), "\n", sep="");
 }
+
+#Use only the first dataset in the config file
+dataset_group = dataset_groups[[1]]
+dataset_name = dataset_names[[1]]
+dataset = datasets[[1]]
+
 
 calc_pt_size <- function(n) { 25 / n ^ 0.33 }
 
@@ -33,6 +51,28 @@ GetClusters <- function(object) {
   rownames(clusters) <- NULL
   clusters$cell.name <- as.character(clusters$cell.name)
   return(clusters)
+}
+
+reloadConfig <- function(session=NULL){
+  json_file <<- rjson::fromJSON(file = './data/config.json');
+  json_data <<- json_file$data;
+  #Read the config data
+  config <<- json_file$config;
+  logMessage("loading metadata...");
+  datasets <<- 1:length(json_data);
+  dataset_groups <<- sapply(json_data, function(x) x$group);
+  dataset_names <<- sapply(json_data, function(x) x$name);
+  dataset_selector <<- as.list(c(datasets));
+  names(dataset_selector) <<- paste0(dataset_groups,"/",dataset_names);
+  data_list <<- lapply(json_data, read_metadata);
+  names(data_list) <<- paste0(sapply(data_list, function(x){x$group}),"/",sapply(data_list, function(x){x$name}));
+  logMessage("all metadata loaded.");
+  if(!is.null(session)){
+    updateSelectInput(session, "selected_group", choices = dataset_groups, selected = dataset_groups[[1]]);
+    updateSelectInput(session, "selected_dataset",
+                      choices = dataset_names[dataset_groups == dataset_groups[[1]]],
+                      selected = dataset_names[[1]]);
+  }
 }
 
 read_metadata <- function(x){
@@ -167,49 +207,26 @@ read_data <- function(x) {
     ))
 }
 
+reloadConfig();
+
 server <- function(input, output, session) {
   ## Save system message outputs (i.e. STDERR) to a log file based on the App start time
   
   values <- reactiveValues()
-
-  reloadConfigSession <- function(){
-    json_file <- rjson::fromJSON(file = './data/config.json');
-    values$json_file <- json_file;
-    json_data <- json_file$data;
-    values$json_data <- json_data;
-    #Read the config data
-    values$config <- json_file$config;
-    logMessage("loading metadata...");
-    datasets <- 1:length(json_data);
-    values$datasets <- datasets;
-    dataset_groups <- sapply(json_data, function(x){x$group});
-    values$dataset_groups <- dataset_groups;
-    dataset_names <- sapply(json_data, function(x){x$name});
-    values$dataset_names <- dataset_names;
-    dataset_selector <- as.list(c(datasets));
-    names(dataset_selector) <- paste0(dataset_groups,"/",dataset_names);
-    values$dataset_selector <- dataset_selector;
-    data_list <- lapply(json_data, read_metadata);
-    names(data_list) <- sapply(data_list, function(x){paste0(x$group,"/",x$name)});
-    values$data_list <- data_list;
-    logMessage("all metadata loaded.");
-    updateSelectInput(session, "selected_group", choices = unique(dataset_groups), selected = dataset_groups[[1]]);
-    updateSelectInput(session, "selected_dataset",
-                      choices = dataset_names[dataset_groups == dataset_groups[[1]]],
-                      selected = dataset_names[[1]]);
-  }
-
-  values$selectedGenes <- "";
-  values$selectedCluster <- "";
-  values$conditionVariable <- "";
-  values$dataConds <- "";
-  values$clusterConds <- "";
-  reloadConfigSession();
+  values$selectedGenes <- ""
+  values$selectedCluster <- ""
+  values$conditionVariable <- ""
+  values$dataConds <- ""
+  values$clusterConds <- ""
+  updateSelectInput(session, "selected_group", choices = dataset_groups, selected = dataset_groups[[1]])
+  updateSelectInput(session, "selected_dataset",
+                    choices = dataset_names[dataset_groups == dataset_groups[[1]]],
+                    selected = dataset_names[[1]])
   
   genes_debounced <- debounce(reactive(input$selected_gene), 4000);
 
   observeEvent({ input$selected_group }, {
-    groupNameChoices <- values$dataset_names[values$dataset_groups == input$selected_group];
+    groupNameChoices <- dataset_names[dataset_groups == input$selected_group];
     updateSelectInput(session, "selected_dataset",
                       choices = groupNameChoices,
                       selected = groupNameChoices[1])
@@ -219,13 +236,10 @@ server <- function(input, output, session) {
   current_dataset_index <- eventReactive({ input$selected_dataset }, {
     mergedName <- paste0(input$selected_group, "/", input$selected_dataset);
     logMessage("Changing dataset to '%s'", mergedName);
-    current_index <- values$dataset_selector[[mergedName]];
-    if(values$data_list[[current_index]]$loaded == FALSE){
+    current_index <- dataset_selector[[mergedName]];
+    if(data_list[[current_index]]$loaded == FALSE){
       logMessage("Loading dataset '%s' from RDS file...", mergedName);
-      newData <- read_data(values$data_list[[current_index]]$config);
-      data_list <- values$data_list;
-      data_list[[current_index]] <- newData;
-      values$data_list <- data_list;
+      data_list[[current_index]] <<- read_data(data_list[[current_index]]$config);
       logMessage("Finished loading dataset '%s' from RDS file", mergedName);
     }
     return(current_index)
@@ -233,7 +247,7 @@ server <- function(input, output, session) {
   
   #Return current organoid and update values
   organoid <- eventReactive({ current_dataset_index() }, {
-    return(values$data_list[[current_dataset_index()]])
+    return(data_list[[current_dataset_index()]])
   })
   
   #Update the UI elements on change
@@ -301,7 +315,7 @@ server <- function(input, output, session) {
 
   #Clear memory and reload metadata from configuration file
   observeEvent(eventExpr = { input$reload_config }, handlerExpr = {
-    reloadConfigSession();
+    reloadConfig(session=session);
   })
   
   #Set the selectedCluster field to nothing when the the dataset is changed 
@@ -316,24 +330,24 @@ server <- function(input, output, session) {
 
   ##GRAPHIC OUTPUTS
   output$cluster_plot <- renderPlot({
-    GetClusterPlot(values$data_list, current_dataset_index(), input, values)
+    GetClusterPlot(data_list, current_dataset_index(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$bi_plot <- renderPlot({
-    GetBiPlot(values$data_list, current_dataset_index(), genes_debounced(), input, values)
+    GetBiPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$expression_plot <- renderPlot({
-    GetExpressionPlot(values$data_list, current_dataset_index(), genes_debounced(), input, values)
+    GetExpressionPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$dot_plot <- renderPlot({
-    GetDotPlot(values$data_list, current_dataset_index(), genes_debounced(), input, values)
+    GetDotPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$heatmap_plot <- renderPlot({
-    GetHeatmapPlot(values$data_list, current_dataset_index(), genes_debounced(), input, values)
+    GetHeatmapPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   
   ## Metadata description
   output$metadata_text <- renderUI({
-    dataMeta <- (values$data_list[[current_dataset_index()]])$meta;
+    dataMeta <- (data_list[[current_dataset_index()]])$meta;
     if(!is.null(dataMeta)){
       res <- lapply(names(dataMeta), function(x){
         val <- dataMeta[[x]];
@@ -364,7 +378,7 @@ server <- function(input, output, session) {
   })
   
   output$DotPlot_table <- DT::renderDT({
-    GetDotPlotData(values$data_list, current_dataset_index(),
+    GetDotPlotData(data_list, current_dataset_index(),
                    genes_debounced(), input, values) -> out.data;
     if(is.null(out.data)){
       NULL;
@@ -448,25 +462,25 @@ server <- function(input, output, session) {
           pivot_wider(names_from="condition", values_from="n") %>%
           write_csv(file)
       } else if(input$tabPanel == "Dot Plot Table"){
-        GetDotPlotData(values$data_list, current_dataset_index(),
+        GetDotPlotData(data_list, current_dataset_index(),
                        genes_debounced(), input, values) %>%
           mutate(across(where(is.numeric), signif, 4)) %>%
           write_csv(file)
       } else {
         if(input$tabPanel == "Dot Plot"){
-          GetDotPlot(values$data_list, current_dataset_index(), current_gene_list(), input, values)
+          GetDotPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Heat Map"){
-          GetHeatmapPlot(values$data_list, current_dataset_index(), current_gene_list(), input, values)
+          GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Bi Plot"){
-          GetBiPlot(values$data_list, current_dataset_index(), current_gene_list(), input, values)
+          GetBiPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Expression Plot"){
-            GetExpressionPlot(values$data_list, current_dataset_index(), current_gene_list(), input, values)
+            GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Cluster Plot"){
-          GetClusterPlot(values$data_list, current_dataset_index(), input, values)
+          GetClusterPlot(data_list, current_dataset_index(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else {
           png(file, width=2200, height=1600, pointsize=20)
