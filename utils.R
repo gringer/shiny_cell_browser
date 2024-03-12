@@ -103,7 +103,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
     xlim(rangeX[1], rangeX[2]) +
     ylim(rangeY[1], rangeY[2]) +
     scale_colour_viridis(option="H", begin=0.1, discrete=TRUE) +
-    geom_point() +
+    geom_point(size = inputDataObj$pt_size) +
     theme_cowplot() +
     theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
   if(inputOpts$splitByCondition){
@@ -291,7 +291,7 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
       aes(x=!!sym(cxName), y=!!sym(cyName), colour=(log2(1+expr))) +
       xlim(rangeX[1], rangeX[2]) +
       ylim(rangeY[1], rangeY[2]) +
-      geom_point() +
+      geom_point(size = inputDataObj$pt_size) +
       theme_cowplot() +
       guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
       theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
