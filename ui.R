@@ -76,6 +76,8 @@ ui <- fluidPage(
                                                                  plotOutput(outputId = "heatmap_plot", inline = TRUE)),
                                                         tabPanel("Dot Plot",
                                                                  plotOutput(outputId = "dot_plot", inline = TRUE)),
+                                                        tabPanel("Feature/Count Plot",
+                                                                 plotOutput(outputId = "feature_vs_count_plot", inline = TRUE)),
                                                         tabPanel("Dot Plot Table",
                                                                  DTOutput("DotPlot_table")),
                                                         tabPanel("Condition DE",
