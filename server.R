@@ -53,7 +53,7 @@ read_data <- function(x) {
   ncells <- length(colnames(seurat_data))
   pt_size <- calc_pt_size(ncells)
   if (!is.null(x$pt_size)) {
-    pt_size <- as.numeric(x$pt_size)
+    pt_size <- x$pt_size
   }
   font_scale <- 1
   if (!is.null(x$font_scale)) {
@@ -93,7 +93,8 @@ read_data <- function(x) {
     coords_title <- dplyr::bind_rows(x$label_coordinates)
     colnames(coords_title) <- c("cluster", "x_center", "y_center")
   }
-
+  pt_size <- as.numeric(x$pt_size)
+  
   #Add the full description name on mouse over
   if (is.null(x$cluster_name_mapping)) {
     cluster_names <- seurat_data@active.ident %>% levels()
@@ -330,6 +331,10 @@ server <- function(input, output, session) {
   output$heatmap_plot <- renderPlot({
     GetHeatmapPlot(values$data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
+  #new
+  output$feature_vs_count_plot <- renderPlot({
+    GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
+  }, width=plot_window_width, height=plot_window_height)
   
   ## Metadata description
   output$metadata_text <- renderUI({
@@ -467,6 +472,9 @@ server <- function(input, output, session) {
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Cluster Plot"){
           GetClusterPlot(values$data_list, current_dataset_index(), input, values)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+        } else if(input$tabPanel == "Feature/Count Plot"){
+          GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else {
           png(file, width=2200, height=1600, pointsize=20)
