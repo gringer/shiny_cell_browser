@@ -63,7 +63,7 @@ for(dPos in datasets){
         errorStates[[dName]] <- c(errorStates[[dName]], "LoadCheck");
         next;
     }
-    if(prod(dim(LayerData(nina.sc, "counts"))) > 0){
+    if(prod(dim(LayerData(seuratObj, "counts"))) > 0){
         cat(" - Gene counts object existence... PASSED!\n");
     } else {
         cat(sprintf(" - Gene counts... FAILED - no count data found!\n"));
