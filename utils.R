@@ -566,3 +566,26 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   }
   return(res)
 }
+
+GetFeaturesVsCountsPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
+  inputDataObj <- inputDataList[[inputDataIndex]];
+  seuratObj <- inputDataObj$seurat_data;
+  ##Extracting nFeature and nCount data
+  nCounts <- seuratObj$nCount_RNA %>%
+    as_tibble_col(column_name = "nCounts")
+  nFeatures <- seuratObj$nFeature_RNA %>%
+    as_tibble_col(column_name = "nFeatures")
+  cell.tbl <-  as_tibble(c(nCounts, nFeatures))
+  cxName <- colnames(cell.tbl)[1]
+  cyName <- colnames(cell.tbl)[2]
+  rangeX <- range(cell.tbl[,1])
+  rangeY <- range(cell.tbl[,2])  
+  cell.tbl %>% ggplot() +
+    aes(x=!!sym(cxName), y=!!sym(cyName)) +
+    xlim(rangeX[1], rangeX[2]) +
+    ylim(rangeY[1], rangeY[2]) +
+    geom_point(size = inputDataObj$pt_size) +
+    theme_cowplot() +
+    theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+  return(res);
+}

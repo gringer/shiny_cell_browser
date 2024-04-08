@@ -327,22 +327,25 @@ server <- function(input, output, session) {
     gene_listy = values$selectedGene
     return(gene_listy)
   })
-
-  ##GRAPHIC OUTPUTS
+  
+  ##GRAPHIC OUTPUTS (ideally here in the same order as the tabs in ui.R)
   output$cluster_plot <- renderPlot({
     GetClusterPlot(data_list, current_dataset_index(), input, values)
-  }, width=plot_window_width, height=plot_window_height)
-  output$bi_plot <- renderPlot({
-    GetBiPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$expression_plot <- renderPlot({
     GetExpressionPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
-  output$dot_plot <- renderPlot({
-    GetDotPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
+  output$bi_plot <- renderPlot({
+    GetBiPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$heatmap_plot <- renderPlot({
     GetHeatmapPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
+  }, width=plot_window_width, height=plot_window_height)
+  output$dot_plot <- renderPlot({
+    GetDotPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
+  }, width=plot_window_width, height=plot_window_height)
+  output$feature_vs_count_plot <- renderPlot({
+    GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   
   ## Metadata description
@@ -466,21 +469,24 @@ server <- function(input, output, session) {
                        genes_debounced(), input, values) %>%
           mutate(across(where(is.numeric), signif, 4)) %>%
           write_csv(file)
-      } else {
-        if(input$tabPanel == "Dot Plot"){
-          GetDotPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
+      } else { ##FILE OUTPUTS (ideally here in the same order as the tabs in ui.R)
+        if(input$tabPanel == "Cluster Plot"){
+          GetClusterPlot(data_list, current_dataset_index(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
-        } else if(input$tabPanel == "Heat Map"){
-          GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
+        } else if(input$tabPanel == "Expression Plot"){
+          GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Bi Plot"){
           GetBiPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
-        } else if(input$tabPanel == "Expression Plot"){
-            GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
+        } else if(input$tabPanel == "Heat Map"){
+          GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
-        } else if(input$tabPanel == "Cluster Plot"){
-          GetClusterPlot(data_list, current_dataset_index(), input, values)
+        } else if(input$tabPanel == "Dot Plot"){
+          GetDotPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+        } else if(input$tabPanel == "Feature/Count Plot"){
+          GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else {
           png(file, width=2200, height=1600, pointsize=20)
