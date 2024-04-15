@@ -62,7 +62,6 @@ FetchGenes <- function(
 }
 
 ##Helper plotting functions
-
 GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
 
   inputDataObj <- inputDataList[[inputDataIndex]];
@@ -82,6 +81,7 @@ GetClusterPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
   if(!all(chooseCells)){
     seuratObj <- subset(seuratObj, cells = which(chooseCells));
   }
+
   ## Fetch dimensional reduction
   Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
     data.frame() %>%
@@ -567,25 +567,72 @@ GetHeatmapPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOp
   return(res)
 }
 
-GetFeaturesVsCountsPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
+GetFeaturesVsCountsPlot <- function(inputDataList, inputDataIndex, inputOpts, values) {
   inputDataObj <- inputDataList[[inputDataIndex]];
-  seuratObj <- inputDataObj$seurat_data;
-  ##Extracting nFeature and nCount data
-  nCounts <- seuratObj$nCount_RNA %>%
-    as_tibble_col(column_name = "nCounts")
-  nFeatures <- seuratObj$nFeature_RNA %>%
-    as_tibble_col(column_name = "nFeatures")
-  cell.tbl <-  as_tibble(c(nCounts, nFeatures))
-  cxName <- colnames(cell.tbl)[1]
-  cyName <- colnames(cell.tbl)[2]
-  rangeX <- range(cell.tbl[,1])
-  rangeY <- range(cell.tbl[,2])  
-  cell.tbl %>% ggplot() +
-    aes(x=!!sym(cxName), y=!!sym(cyName)) +
-    xlim(rangeX[1], rangeX[2]) +
-    ylim(rangeY[1], rangeY[2]) +
-    geom_point(size = inputDataObj$pt_size) +
-    theme_cowplot() +
-    theme(strip.background = element_blank(), strip.text.x = element_text(face="bold")) -> res;
+  seuratObj <- inputDataObj$seurat_data
+  geneCounts <- inputDataObj$geneCounts %>% as.matrix();
+  ## Using Gene Counts object because count object might not be RNA
+  nCounts <- colSums(geneCounts);
+  nFeatures <- apply(geneCounts, 2, function(x){sum(x > 0)});
+  
+  cell.tbl <- tibble("nCounts" = nCounts, "nFeatures" = nFeatures) %>%
+    group_by(nCounts, nFeatures) %>%
+    mutate(count = n());
+  ## add cluster and condition columns (and refactor to exclude empties)
+  cell.tbl$cluster <- factor(unlist(seuratObj[["X__cluster"]]));
+  cell.tbl$condition <- factor(unlist(seuratObj[[values$conditionVariable]]));
+  
+  ## create cell groups
+  cell.tbl$group = "__1__";
+  ## filter cluster / cell type at cell level
+  if(length(inputOpts$selected_cluster) > 0){
+    cell.tbl <- filter(cell.tbl, cluster %in% inputOpts$selected_cluster);
+    cell.tbl$cluster <- factor(cell.tbl$cluster, levels=inputOpts$selected_cluster);
+    cell.tbl$group <- cell.tbl$cluster;
+  }
+  if(inputOpts$splitByCondition){
+    if(length(inputOpts$selected_cluster) > 0){
+      clusterCondLevels <- outer(levels(cell.tbl$cluster),
+                                 levels(cell.tbl$condition),
+                                 paste, sep="_");
+      cell.tbl$group <- factor(paste(cell.tbl$cluster, cell.tbl$condition, sep="_"),
+                               levels=clusterCondLevels);
+    } else {
+      cell.tbl$group <- cell.tbl$condition;
+    }
+  }
+
+  if(max(length(unique(cell.tbl$nCounts)), length(unique(cell.tbl$nFeatures))) < 50){
+    if(all(cell.tbl$group == "__1__")){
+      cell.tbl %>% ggplot() +
+        aes(x=nCounts, y=nFeatures, label=count, fill=count) +
+        geom_tile() +
+        geom_text(size=3, col="grey") +
+        scale_fill_viridis() +
+        theme() -> res;
+    } else {
+      cell.tbl %>% ggplot() +
+        aes(x=nCounts, y=nFeatures, col=count) +
+        geom_point(size = inputDataObj$pt_size) +
+        scale_colour_viridis() +
+        theme() +
+        facet_wrap(~ group) -> res;
+    }
+  } else {
+    if(all(cell.tbl$group == "__1__")){
+      cell.tbl %>% ggplot() +
+        aes(x=nCounts, y=nFeatures, col=count) +
+        geom_point(size = inputDataObj$pt_size) +
+        scale_colour_viridis() +
+        theme() -> res;
+    } else {
+      cell.tbl %>% ggplot() +
+        aes(x=nCounts, y=nFeatures, col=count) +
+        geom_point(size = inputDataObj$pt_size) +
+        scale_colour_viridis() +
+        theme() +
+        facet_wrap(~ group) -> res;
+    }
+  }
   return(res);
 }

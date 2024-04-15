@@ -93,20 +93,20 @@ read_data <- function(x) {
   ncells <- length(colnames(seurat_data))
   pt_size <- calc_pt_size(ncells)
   if (!is.null(x$pt_size)) {
-    pt_size <- as.numeric(x$pt_size)
+    pt_size <- x$pt_size
   }
   font_scale <- 1
   if (!is.null(x$font_scale)) {
-    font_scale <- x$font_scale
+    font_scale <- x$font_scale;
   }
   colors <- seurat_data@misc[[sprintf("%s_colors", x$cluster)]]
   if (is.null(colors)) {
-    set.seed(2)
-    colors <- turbo(n_distinct(seurat_data@active.ident))
+    set.seed(2);
+    colors <- turbo(n_distinct(seurat_data@active.ident));
   }
-  condition <- x$condition
-  geneCounts <- LayerData(seurat_data, layer="counts")
-  genes <- sort(rownames(geneCounts))
+  condition <- x$condition;
+  geneCounts <- LayerData(seurat_data, layer="counts");
+  genes <- sort(rownames(geneCounts));
   
   ## Identify potentially useful condition names
   condNames <- sapply(names(seurat_data@meta.data), 
@@ -133,7 +133,8 @@ read_data <- function(x) {
     coords_title <- dplyr::bind_rows(x$label_coordinates)
     colnames(coords_title) <- c("cluster", "x_center", "y_center")
   }
-
+  pt_size <- as.numeric(x$pt_size)
+  
   #Add the full description name on mouse over
   if (is.null(x$cluster_name_mapping)) {
     cluster_names <- seurat_data@active.ident %>% levels()
@@ -345,9 +346,9 @@ server <- function(input, output, session) {
     GetDotPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$feature_vs_count_plot <- renderPlot({
-    GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
+    GetFeaturesVsCountsPlot(data_list, current_dataset_index(), input, values)
   }, width=plot_window_width, height=plot_window_height)
-  
+
   ## Metadata description
   output$metadata_text <- renderUI({
     dataMeta <- (data_list[[current_dataset_index()]])$meta;
@@ -484,6 +485,9 @@ server <- function(input, output, session) {
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Dot Plot"){
           GetDotPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+        } else if(input$tabPanel == "Feature/Count Plot"){
+          GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
           ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
         } else if(input$tabPanel == "Feature/Count Plot"){
           GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
