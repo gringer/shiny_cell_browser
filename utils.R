@@ -609,28 +609,28 @@ GetFeaturesVsCountsPlot <- function(inputDataList, inputDataIndex, inputOpts, va
         geom_tile() +
         geom_text(size=3, col="grey") +
         scale_fill_viridis() +
-        theme() -> res;
-    } else {
+        theme_cowplot() -> res;
+    } else { # grid for subset clusters doesn't look good
       cell.tbl %>% ggplot() +
         aes(x=nCounts, y=nFeatures, col=count) +
         geom_point(size = inputDataObj$pt_size) +
         scale_colour_viridis() +
-        theme() +
+        theme_cowplot() +
         facet_wrap(~ group) -> res;
     }
   } else {
     if(all(cell.tbl$group == "__1__")){
       cell.tbl %>% ggplot() +
         aes(x=nCounts, y=nFeatures, col=count) +
-        geom_point(size = inputDataObj$pt_size) +
+        geom_point(size = inputDataObj$pt_size, alpha=0.75) +
         scale_colour_viridis() +
-        theme() -> res;
+        theme_cowplot() -> res;
     } else {
       cell.tbl %>% ggplot() +
         aes(x=nCounts, y=nFeatures, col=count) +
-        geom_point(size = inputDataObj$pt_size) +
+        geom_point(size = inputDataObj$pt_size, alpha=0.75) +
         scale_colour_viridis() +
-        theme() +
+        theme_cowplot() +
         facet_wrap(~ group) -> res;
     }
   }
