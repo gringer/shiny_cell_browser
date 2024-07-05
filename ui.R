@@ -56,6 +56,7 @@ ui <- fluidPage(
                                                           selected="png"))),
                              checkboxInput("splitByCondition", label="Split by condition", value = FALSE),
                              checkboxInput("mergeGenes", label="Merge Gene Counts", value = FALSE),
+                             checkboxInput("pairEmbedding", label="Pair with Visualisation", value = FALSE),
                              fluidRow(column(12, downloadButton(outputId = "save_file", label = "Save output"), align = "center"),
                              h5(strong("Controls")),
                              fluidRow(column(6, actionButton(inputId = "reload_config", label = "Reload config"), align = "center"),
@@ -71,8 +72,13 @@ ui <- fluidPage(
                                                                  plotOutput(outputId = "cluster_plot", inline = TRUE)),
                                                         tabPanel("Expression Plot",
                                                                  plotOutput(outputId = "expression_plot", inline = TRUE)),
-                                                        tabPanel("Bi Plot",
-                                                                 plotOutput(outputId = "bi_plot", inline = TRUE)),
+                                                        tabPanel("Bi Plot", tags$div(
+                                                          plotOutput(outputId = "bi_plot", inline = TRUE,
+                                                                     hover=hoverOpts("biPlotHover", delay = 300,
+                                                                                     delayType="debounce")),
+                                                          tags$span(conditionalPanel("input.pairEmbedding", style = "display: inline-block;",
+                                                                           plotOutput(outputId = "pairVis", inline = TRUE))))
+                                                        ),
                                                         tabPanel("Heat Map",
                                                                  plotOutput(outputId = "heatmap_plot", inline = TRUE)),
                                                         tabPanel("Dot Plot",

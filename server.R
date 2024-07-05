@@ -297,14 +297,21 @@ server <- function(input, output, session) {
               ignoreNULL = TRUE, ignoreInit = TRUE)
 
   #Get plot window width using the cluster plot as a reference
-  plot_window_width = eventReactive({ winDims_debounced() }, {
-    return(input$winDims[1] - 25)
+  plot_window_width = eventReactive({ list(winDims_debounced(), input$pairEmbedding) }, {
+    if(input$pairEmbedding){
+      return(input$winDims[1]/2 - 25)
+    } else {
+      return(input$winDims[1] - 25)
+    }
   })
 
   #Get plot window height using the cluster plot as a reference (force height = width)
   plot_window_height = eventReactive({ winDims_debounced() }, {
-    return(input$winDims[2] - 125)
+    return(input$winDims[2] - 145)
   })
+  
+  #Monitor hover information for biplot
+  ##TODO: possibly not needed
 
   #Monitor cluster plot for changes and update selectedCluster field
 
@@ -337,6 +344,9 @@ server <- function(input, output, session) {
   }, width=plot_window_width, height=plot_window_height)
   output$bi_plot <- renderPlot({
     GetBiPlot(data_list, current_dataset_index(), genes_debounced(), input, values)
+  }, width=plot_window_width, height=plot_window_height)
+  output$pairVis <- renderPlot({
+    GetPairVis(data_list, current_dataset_index(), genes_debounced(), input, values)
   }, width=plot_window_width, height=plot_window_height)
   output$heatmap_plot <- renderPlot({
     GetHeatmapPlot(data_list, current_dataset_index(), genes_debounced(), input, values)

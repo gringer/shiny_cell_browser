@@ -124,8 +124,29 @@ GetPlotData <- function(inputDataObj, inputGene) {
   }
 }
 
+GetPairVis <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
+  inputDataObj <- inputDataList[[inputDataIndex]]
+  seuratObj <- inputDataObj$seurat_data
+  Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
+    data.frame() %>%
+    rownames_to_column("cell") -> embed.tbl;
+  embed.colNames <- colnames(embed.tbl)[-1];
+  embed.tbl %>%
+    ggplot() +
+    aes(x = !!sym(embed.colNames[1]), y = !!sym(embed.colNames[2])) +
+    geom_point(size = inputDataObj$pt_size, col="lightgrey") +
+    theme_cowplot() -> embed.plt;
+  if(!is.null(inputOpts$biPlotHover)){
+    nearPoints(values$pairData, inputOpts$biPlotHover) -> pairData.tbl;
+    if(nrow(pairData.tbl) > 0){
+      embed.plt <- embed.plt +
+        geom_point(size = inputDataObj$pt_size * 2, data=pairData.tbl);
+    }
+  }
+  embed.plt;
+}
+
 GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, values) {
-  
   inputDataObj <- inputDataList[[inputDataIndex]]
   seuratObj <- inputDataObj$seurat_data
   ## Determine maximum RNA expression (pre-filtering)
@@ -186,6 +207,7 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
     left_join(feature.tbl, by="cell") -> merged.tbl
   ## plot object
   maxCount <- max(merged.tbl[[cxName]], merged.tbl[[cyName]]);
+  values$pairData <- merged.tbl;
   res <- if(maxCount < 30){
     merged.tbl %>% 
       group_by(group, !!sym(cxName), !!sym(cyName)) %>%
