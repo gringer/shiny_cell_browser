@@ -239,12 +239,17 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     }
     ## Fetch expression data
     geneCounts[inputGeneList,, drop=FALSE] %>%
-        data.frame() %>%
-        rownames_to_column("feature") %>%
-        as_tibble() %>%
-        mutate(feature = factor(feature, levels=inputGeneList)) %>%
-        pivot_longer(cols = -1, names_to="cell", values_to="expr") -> feature.tbl;
-    colnames(feature.tbl) <- sub("-ENS.*$", "", colnames(feature.tbl));
+      data.frame() %>%
+      rownames_to_column("feature") %>%
+      as_tibble() %>%
+      mutate(feature = factor(feature, levels=inputGeneList)) %>%
+      pivot_longer(cols = -1, names_to="cell", values_to="expr") -> feature.tbl;
+    if(inputOpts$mergeGenes && (length(inputGeneList) > 1)){
+      feature.tbl %>%
+        group_by(cell) %>%
+        summarise(feature = "MergedGenes", expr=sum(expr)) -> feature.tbl;
+      inputGeneList <- "MergedGenes";
+    }
     ## Fetch dimensional reduction
     Embeddings(seuratObj, reduction=inputDataObj$embedding) %>%
       data.frame() %>%
@@ -281,7 +286,6 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
         cell.tbl$group <- cell.tbl$condition;
       }
     }
-
     ## merge expression + cell data
     cell.tbl %>%
         left_join(feature.tbl, by="cell") %>%
