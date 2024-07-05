@@ -213,16 +213,15 @@ reloadConfig();
 server <- function(input, output, session) {
   ## Save system message outputs (i.e. STDERR) to a log file based on the App start time
   
-  values <- reactiveValues()
-  values$selectedGenes <- ""
-  values$selectedCluster <- ""
-  values$conditionVariable <- ""
-  values$dataConds <- ""
-  values$clusterConds <- ""
+  values <- reactiveValues(selectedGenes = "", selectedCluster = "",
+                           conditionVariable = "", dataConds = "",
+                           clusterConds = "")
   updateSelectInput(session, "selected_group", choices = dataset_groups, selected = dataset_groups[[1]])
   updateSelectInput(session, "selected_dataset",
                     choices = dataset_names[dataset_groups == dataset_groups[[1]]],
                     selected = dataset_names[[1]])
+  
+  winDims_debounced <- debounce(reactive(input$winDims), 300);
   
   genes_debounced <- debounce(reactive(input$selected_gene), 4000);
 
@@ -298,12 +297,12 @@ server <- function(input, output, session) {
               ignoreNULL = TRUE, ignoreInit = TRUE)
 
   #Get plot window width using the cluster plot as a reference
-  plot_window_width = eventReactive({ input$winDims }, {
+  plot_window_width = eventReactive({ winDims_debounced() }, {
     return(input$winDims[1] - 25)
   })
 
   #Get plot window height using the cluster plot as a reference (force height = width)
-  plot_window_height = eventReactive({ input$winDims }, {
+  plot_window_height = eventReactive({ winDims_debounced() }, {
     return(input$winDims[2] - 125)
   })
 
