@@ -212,9 +212,10 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
   cell.tbl %>%
     left_join(feature.tbl, by="cell") -> merged.tbl
   ## plot object
+  set.seed(42); ## to make sure that applied jitter is consistent
   maxCount <- max(merged.tbl[[cxName]], merged.tbl[[cyName]]);
-  values$pairData <- merged.tbl;
   res <- if(maxCount < 30){
+    values$pairData <- merged.tbl;
     merged.tbl %>% 
       group_by(group, !!sym(cxName), !!sym(cyName)) %>%
       summarise(cellCount = n()) %>%
@@ -226,11 +227,14 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
       theme_cowplot() +
       theme(strip.background = element_blank(), strip.text.x = element_text(face="bold"));
   } else {
+    merged.tbl[[cxName]] <- merged.tbl[[cxName]] + rnorm(nrow(merged.tbl), sd = 0.15);
+    merged.tbl[[cyName]] <- merged.tbl[[cyName]] + rnorm(nrow(merged.tbl), sd = 0.15);
+    values$pairData <- merged.tbl;
     merged.tbl %>% ggplot() +
       aes(x=!!sym(cxName), y=!!sym(cyName), colour=group) +
       xlim(rangeX[1], rangeX[2]) +
       ylim(rangeY[1], rangeY[2]) +
-      geom_point(position="jitter") +
+      geom_point(size = inputDataObj$pt_size * 2) +
       theme_cowplot() +
       guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
       theme(strip.background = element_blank(), strip.text.x = element_text(face="bold"));
@@ -246,6 +250,13 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
     res <- res +
       scale_colour_discrete(c("lightgrey","#e31837")) +
       guides(colour="none");
+  }
+  if(inputOpts$pairEmbedding && !is.null(inputOpts$biPlotBrush)){
+    brushedPoints(merged.tbl, isolate(inputOpts$biPlotBrush)) -> pairData.tbl;
+    if(nrow(pairData.tbl) > 0){
+      res <- res +
+        geom_point(size = inputDataObj$pt_size * 4, data=pairData.tbl, col="black");
+    }
   }
   return(res);
 }

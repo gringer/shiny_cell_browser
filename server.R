@@ -482,25 +482,32 @@ server <- function(input, output, session) {
       } else { ##FILE OUTPUTS (ideally here in the same order as the tabs in ui.R)
         if(input$tabPanel == "Cluster Plot"){
           GetClusterPlot(data_list, current_dataset_index(), input, values)
-          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11, bg="white")
         } else if(input$tabPanel == "Expression Plot"){
           GetExpressionPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
-          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11, bg="white")
         } else if(input$tabPanel == "Bi Plot"){
-          GetBiPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
-          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+          if(input$pairEmbedding){
+            plot_grid(nrow = 1,
+                      GetBiPlot(data_list, current_dataset_index(), current_gene_list(), input, values),
+                      GetPairVis(data_list, current_dataset_index(), current_gene_list(), input, values))
+            ggsave(file, width = 22, height=plot_window_height() / plot_window_width() * 11, bg="white")
+          } else {
+            GetBiPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
+            ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11, bg="white")
+          }
         } else if(input$tabPanel == "Heat Map"){
           GetHeatmapPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
-          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11, bg="white")
         } else if(input$tabPanel == "Dot Plot"){
           GetDotPlot(data_list, current_dataset_index(), current_gene_list(), input, values)
-          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11, bg="white")
         } else if(input$tabPanel == "Feature/Count Plot"){
           GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
-          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11, bg="white")
         } else if(input$tabPanel == "Feature/Count Plot"){
           GetFeaturesVsCountsPlot(values$data_list, current_dataset_index(), input, values)
-          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11)
+          ggsave(file, width = 11, height=plot_window_height() / plot_window_width() * 11, bg="white")
         } else {
           png(file, width=2200, height=1600, pointsize=20)
           plot.default(NA, xlim=c(0, 1), ylim=c(0,1))
