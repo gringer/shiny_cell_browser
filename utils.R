@@ -136,7 +136,13 @@ GetPairVis <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, 
     aes(x = !!sym(embed.colNames[1]), y = !!sym(embed.colNames[2])) +
     geom_point(size = inputDataObj$pt_size, col="lightgrey") +
     theme_cowplot() -> embed.plt;
-  if(!is.null(inputOpts$biPlotHover)){
+  if(!is.null(inputOpts$biPlotBrush)){
+    brushedPoints(values$pairData, inputOpts$biPlotBrush) -> pairData.tbl;
+    if(nrow(pairData.tbl) > 0){
+      embed.plt <- embed.plt +
+        geom_point(size = inputDataObj$pt_size * 2, data=pairData.tbl);
+    }
+  } else if(!is.null(inputOpts$biPlotHover)){
     nearPoints(values$pairData, inputOpts$biPlotHover) -> pairData.tbl;
     if(nrow(pairData.tbl) > 0){
       embed.plt <- embed.plt +

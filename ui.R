@@ -75,7 +75,9 @@ ui <- fluidPage(
                                                         tabPanel("Bi Plot", tags$div(
                                                           plotOutput(outputId = "bi_plot", inline = TRUE,
                                                                      hover=hoverOpts("biPlotHover", delay = 300,
-                                                                                     delayType="debounce")),
+                                                                                     delayType="debounce"),
+                                                                     brush=brushOpts("biPlotBrush")
+                                                          ),
                                                           tags$span(conditionalPanel("input.pairEmbedding", style = "display: inline-block;",
                                                                            plotOutput(outputId = "pairVis", inline = TRUE))))
                                                         ),
