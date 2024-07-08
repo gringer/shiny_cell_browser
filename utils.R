@@ -218,7 +218,9 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
     values$pairData <- merged.tbl;
     merged.tbl %>% 
       group_by(group, !!sym(cxName), !!sym(cyName)) %>%
-      summarise(cellCount = n()) %>%
+      summarise(cellCount = n()) -> binnedData.tbl;
+    values$binnedData <- binnedData.tbl;
+    binnedData.tbl %>%
       ggplot() +
       aes(x=!!sym(cxName), y=!!sym(cyName), colour=group, fill=cellCount, label=cellCount) +
       geom_tile() +
@@ -251,12 +253,18 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
       scale_colour_discrete(c("lightgrey","#e31837")) +
       guides(colour="none");
   }
-  if(inputOpts$pairEmbedding && !is.null(inputOpts$biPlotBrush)){
+  if(inputOpts$pairEmbedding && (maxCount >= 30) && !is.null(inputOpts$biPlotBrush)){
     brushedPoints(merged.tbl, isolate(inputOpts$biPlotBrush)) -> pairData.tbl;
     if(nrow(pairData.tbl) > 0){
       res <- res +
         geom_point(size = inputDataObj$pt_size * 4, data=pairData.tbl, col="black");
     }
+  } else if(inputOpts$pairEmbedding && (maxCount < 30) && !is.null(inputOpts$biPlotBrush)){
+    brushedPoints(binnedData.tbl, isolate(inputOpts$biPlotBrush)) -> pairData.tbl;
+    if(nrow(pairData.tbl) > 0){
+      res <- res +
+        geom_text(col = "grey", data = pairData.tbl, fontface="bold");
+      }
   }
   return(res);
 }
