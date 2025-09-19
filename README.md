@@ -98,7 +98,22 @@ Example `config.json` file:
 
 ### Dependencies
 
-Check the Dockerfile.
+Check the Dockerfile. Here are the R packages that are needed as of 2025-Sep-19:
+
+    install.packages(c("xml2", "openssl", "rjson"))
+    install.packages(c("SeuratObject", "Seurat"))
+    install.packages(c("shinydashboard"))
+    install.packages(c("DT"))
+    install.packages(c("varhandle"))
+    install.packages(c("shinyjs"))
+    install.packages(c("rlist"))
+    install.packages(c("shinythemes"))
+    install.packages(c("viridis"))
+    install.packages(c("logging"))
+    install.packages(c("svglite"))
+    install.packages(c("systemfonts"))
+
+If these packages don't install properly, it is likely that additional libraries need to be installed on the system that the shiny cell browser is running on. The Dockerfile may help in working out what additional system libraries need to be installed.
   
 ## Updates
 
