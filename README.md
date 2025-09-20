@@ -90,6 +90,7 @@ Example `config.json` file:
 }
 
 ```
+A full example Seurat v4 dataset can be found [here](https://doi.org/10.5281/zenodo.5540103), which is a single-cell dataset associated with [this paper](https://doi.org/10.1038/s41590-021-01067-0).
 
 ## Troubleshooting
 
