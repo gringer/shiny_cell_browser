@@ -112,6 +112,23 @@ read_data <- function(x) {
   condNames <- sapply(names(seurat_data@meta.data), 
                       function(x){length(unique(seurat_data@meta.data[[x]]))});
   condNames <- unique(c(condition, sort(names(which(condNames > 1 & condNames < 100)))));
+  
+  ## Store numeric conditions as additional "genes"
+  numericNames <- sapply(names(seurat_data@meta.data), 
+                      function(x){is.numeric(seurat_data@meta.data[[x]])});
+  numericNames <- sort(names(numericNames[numericNames]));
+  cat("Prior to adding\n");
+  print(max(geneCounts));
+  for(nName in numericNames){
+    dataToAdd <- seurat_data@meta.data[[nName]];
+    if(max(dataToAdd, na.rm=TRUE) < max(geneCounts)){
+      newName <- paste0("Meta__", nName);
+      geneCounts <- rbind(geneCounts, matrix(coalesce(dataToAdd, 0),nrow=1, dimnames=list(sprintf("Meta__%s", nName))));
+      genes <- c(genes, newName);
+    }
+  }
+  cat("After adding\n");
+  print(max(geneCounts));
 
   dimEmbedding <- x$embedding;
   if(is.null(dimEmbedding)){

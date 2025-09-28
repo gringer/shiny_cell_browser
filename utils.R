@@ -161,7 +161,8 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
   
   #On initialization, check to make sure exactly 2 valid genes have been selected
   if ((length(inputGeneList) == 0) || 
-      ((length(inputGeneList) == 1) && (inputGeneList == "")) || (length(inputGeneList) != 2)) {
+      (length(inputGeneList) == 1) ||
+      (length(inputGeneList) > 2)) {
     return(NULL)
   }
   ## Fetch expression data
@@ -180,11 +181,6 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
     mutate(cell=gsub("-", ".", cell) %>% gsub("^([0-9])","X\\1", .),
            cluster=factor(unlist(seuratObj[["X__cluster"]])),
            condition=factor(unlist(seuratObj[[values$conditionVariable]]))) -> cell.tbl;
-  ## identify gene names
-  cxName <- inputGeneList[1];
-  cyName <- inputGeneList[2];
-  rangeX <- range(feature.tbl[,2], na.rm = TRUE);
-  rangeY <- range(feature.tbl[,3], na.rm = TRUE);
   ## create cell groups
   cell.tbl$group = "1";
   ## filter cluster / cell type at cell level
@@ -208,12 +204,17 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
       cell.tbl$group <- cell.tbl$condition;
     }
   }
+  ## identify gene names
+  cxName <- inputGeneList[1];
+  cyName <- inputGeneList[2];
+  rangeX <- range(feature.tbl[,2], na.rm = TRUE);
+  rangeY <- range(feature.tbl[,3], na.rm = TRUE);
   ## merge expression + cell data
   cell.tbl %>%
     left_join(feature.tbl, by="cell") -> merged.tbl
   ## plot object
   set.seed(42); ## to make sure that applied jitter is consistent
-  maxCount <- max(merged.tbl[[cxName]], merged.tbl[[cyName]]);
+  maxCount <- max(merged.tbl[[cxName]], merged.tbl[[cyName]], na.rm=TRUE);
   res <- if(maxCount < 30){
     values$pairData <- merged.tbl;
     merged.tbl %>% 
@@ -241,8 +242,9 @@ GetBiPlot <- function(inputDataList, inputDataIndex, inputGeneList, inputOpts, v
       guides(colour=guide_colourbar(title = expression(log[2]~Expression))) +
       theme(strip.background = element_blank(), strip.text.x = element_text(face="bold"));
   }
-  if((length(inputOpts$selected_cluster) > 1) | (length(inputOpts$selected_ctype) > 1) |
-     inputOpts$splitByCondition){
+  if((length(inputOpts$selected_cluster) > 1) |
+     (length(inputOpts$selected_ctype) > 1) |
+     (inputOpts$splitByCondition)){
     res <- res + facet_wrap(~ group);
   }
   ## update dot colours
