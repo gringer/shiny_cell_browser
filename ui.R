@@ -55,6 +55,7 @@ ui <- fluidPage(
                                                           choices = c("PNG"="png", "PDF"="pdf", "SVG"="svg"),
                                                           selected="png"))),
                              checkboxInput("splitByCondition", label="Split by condition", value = FALSE),
+                             checkboxInput("mergeCluster", label="Merge Clusters", value = FALSE),
                              checkboxInput("mergeGenes", label="Merge Gene Counts", value = FALSE),
                              checkboxInput("pairEmbedding", label="Pair with Visualisation", value = FALSE),
                              fluidRow(column(12, downloadButton(outputId = "save_file", label = "Save output"), align = "center"),

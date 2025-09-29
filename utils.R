@@ -318,7 +318,9 @@ GetExpressionPlot <- function(inputDataList, inputDataIndex, inputGeneList, inpu
     if(length(inputOpts$selected_cluster) > 0){
       cell.tbl <- filter(cell.tbl, cluster %in% inputOpts$selected_cluster);
       cell.tbl$cluster <- factor(cell.tbl$cluster, levels=inputOpts$selected_cluster);
-      cell.tbl$group <- cell.tbl$cluster;
+      if(!inputOpts$mergeCluster){
+        cell.tbl$group <- cell.tbl$cluster;
+      }
     }
     if((length(inputOpts$selected_ctype) > 0) | (inputOpts$splitByCondition)){
       if(length(inputOpts$selected_ctype) > 0) {
